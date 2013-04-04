@@ -1,6 +1,6 @@
-;;; visual-regexp.el --- A Python regexp/replace command for Emacs with interactive visual feedback
+;;; visual-regexp.el --- A regexp/replace command for Emacs with interactive visual feedback
 
-;; Copyright (C) 2012 Marko Bencun
+;; Copyright (C) 2012-2013 Marko Bencun
 
 ;; Author : Marko Bencun <mbencun@gmail.com>
 ;; URL : https://github.com/benma/visual-regexp.el/
@@ -70,6 +70,7 @@
 
 ;; cl is used for (loop ...) macro
 (require 'cl)
+;;(require 'visual-ext-regexp)
 
 ;;; faces
 
@@ -127,40 +128,6 @@
 
 ;;; variables
 
-(defcustom vr/command-python (format "python %s" (expand-file-name "regexp.py" (file-name-directory load-file-name)))
-  "External command used for the Python engine."
-  :type 'string
-  :group 'visual-regexp)
-
-(defcustom vr/command-custom ""
-  "Custom external command used when the engine is set to custom."
-  :type 'string
-  :group 'visual-regexp)
-
-(defcustom vr/engine 'emacs
-  "Which engine to use for searching/replacing. 
-Use Emacs to use Emacs-style regular expressions.
-Use Python to use Python's regular expressions (see vr/command-python).
-Use Custom to use a custom external command (see vr/command-custom)."
-  :type '(choice
-	  (const :tag "Emacs" emacs) 
-	  (const :tag "Python" python)
-	  (const :tag "Custom" custom))
-  :group 'visual-regexp)
-
-
-;; (defcustom glasses-face nil
-;;   "Face to be put on capitals of an identifier looked through glasses.
-;; If it is nil, no face is placed at the capitalized letter.
-
-;; For example, you can set `glasses-separator' to an empty string and
-;; `glasses-face' to `bold'.  Then unreadable identifiers will have no separators,
-;; but will have their capitals in bold."
-;;   :group 'glasses
-;;   :type '(choice (const :tag "None" nil) face)
-;;   :set 'glasses-custom-set
-;;   :initialize 'custom-initialize-default)
-
 (defcustom vr/auto-show-help t
   "Show help message automatically when the minibuffer is entered."
   :type 'boolean
@@ -177,19 +144,8 @@ If nil, don't limit the number of matches shown in visual feedback."
   :type 'boolean
   :group 'visual-regexp)
 
-(defcustom vr/default-regexp-modifiers '(:I nil :M t :S nil :U nil)
-  "Modifiers that are applied by default. All modifiers are: '(I M S U).
-See also: http://docs.python.org/library/re.html#re.I"
-  ;;:type '(choice (const 10) (const 5))
-
-  :type '(plist :key-type (choice
-			   (const :tag "Enable the IGNORECASE modifier by default" :I) 
-			   (const :tag "Enable the MULTILINE modifier by default (^ and $ match on every line)" :M)
-			   (const :tag "Enable the DOTALL modifier by default (dot matches newline)" :S)
-			   (const :tag "Enable the UNICODE modifier by default" :U))
-		:value-type boolean)
-  :group 'visual-regexp
-  )
+(defvar vr/initialize-hook nil
+  "Hook called before vr/replace and vr/query-replace")
 
 ;;; private variables
 
@@ -220,9 +176,6 @@ See also: http://docs.python.org/library/re.html#re.I"
 (defvar vr--replace-string nil
   "Entered replacement.")
 
-(defvar vr--use-expression nil
-  "Use expression instead of string in replacement.")
-
 (defvar vr--feedback-limit nil
   "Feedback limit currently in use.")
 
@@ -238,23 +191,11 @@ See also: http://docs.python.org/library/re.html#re.I"
 (defvar vr--visible-overlays (list)
   "Overlays currently visible.")
 
-;; modifiers IMSU (see http://docs.python.org/library/re.html#re.I)
-(defvar vr--regexp-modifiers '()
-  "Modifiers in use.")
-
 ;;; keymap
 
 (defvar vr/minibuffer-regexp-keymap 
   (let ((map (copy-keymap minibuffer-local-map)))
     (define-key map (kbd "C-c ?") (lambda () (interactive) (vr--minibuffer-help)))
-
-    ;; C-i is also <tab>. http://stackoverflow.com/questions/1792326/how-do-i-bind-a-command-to-c-i-without-changing-tab
-    (setq map (delq '(kp-tab . [9]) map))
-    ;;(keyboard-translate ?\C-i ?\H-i)
-    (define-key map (kbd "C-c i") (lambda () (interactive) (vr--toggle-regexp-modifier :I)))
-    (define-key map (kbd "C-c m") (lambda () (interactive) (vr--toggle-regexp-modifier :M)))
-    (define-key map (kbd "C-c s") (lambda () (interactive) (vr--toggle-regexp-modifier :S)))
-    (define-key map (kbd "C-c u") (lambda () (interactive) (vr--toggle-regexp-modifier :U)))
 
     (define-key map (kbd "C-c a") 'vr--toggle-limit)
     map)
@@ -263,12 +204,6 @@ See also: http://docs.python.org/library/re.html#re.I"
 (defvar vr/minibuffer-replace-keymap 
   (let ((map (copy-keymap minibuffer-local-map)))
     (define-key map (kbd "C-c ?") (lambda () (interactive) (vr--minibuffer-help)))
-    (define-key map (kbd "C-c C-c") (lambda () (interactive)
-				      (when (not (eq vr/engine 'emacs))
-					(when (equal vr--in-minibuffer 'vr--minibuffer-replace)
-					  (setq vr--use-expression (not vr--use-expression))
-					  (vr--update-minibuffer-prompt)
-					  (vr--do-replace-feedback)))))
     (define-key map (kbd "C-c m") (lambda ()
 				    (interactive)
 				    (when (equal vr--in-minibuffer 'vr--minibuffer-replace)
@@ -290,11 +225,6 @@ See also: http://docs.python.org/library/re.html#re.I"
 
 ;;; helper functions
 
-(defun vr--get-command ()
-  (cond
-   ((eq vr/engine 'python) vr/command-python)
-   ((eq vr/engine 'custom) vr/command-custom)))
-
 (defun vr--toggle-limit ()
   "Toggle the limit of overlays shown (default limit / no limit)"
   (interactive)
@@ -302,43 +232,17 @@ See also: http://docs.python.org/library/re.html#re.I"
       (setq vr--feedback-limit nil)
     (setq vr--feedback-limit vr/default-feedback-limit))
   (cond ((equal vr--in-minibuffer 'vr--minibuffer-regexp)
-	 (vr--regexp-feedback))
+	 (vr--feedback))
 	((equal vr--in-minibuffer 'vr--minibuffer-replace)
-	 (vr--regexp-feedback t) ;; update overlays
+	 (vr--feedback t) ;; update overlays
 	 (vr--do-replace-feedback))))
 
-(defun vr--regexp-modifiers-enabled ()
-  (eq vr/engine 'python))
-
-(defun vr--toggle-regexp-modifier (modifier)
-  "modifier should be one of :I, :M, :S, :U."
-  (plist-put vr--regexp-modifiers modifier 
-	     (not (plist-get vr--regexp-modifiers modifier)))
-  (vr--update-minibuffer-prompt)
-  (vr--regexp-feedback))
 
 (defun vr--get-regexp-string ()
-  (concat (vr--get-regexp-modifiers-prefix) 
-	  (if (equal vr--in-minibuffer 'vr--minibuffer-regexp) 
+  (concat (if (equal vr--in-minibuffer 'vr--minibuffer-regexp) 
 	      (minibuffer-contents-no-properties) 
 	    vr--regexp-string)))
 
-(defun vr--get-regexp-modifiers-prefix ()
-  "Construct (?imsu) prefix based on selected modifiers."
-  (if (vr--regexp-modifiers-enabled)
-      (let ((s (mapconcat 'identity 
-			  (delq nil (mapcar (lambda (m)
-					      (when (plist-get vr--regexp-modifiers m)
-						(cond ((equal m :I) "i")
-						      ((equal m :M) "m")
-						      ((equal m :S) "s")
-						      ((equal m :U) "u")
-						      (t nil))))
-					    (list :I :M :S :U)))
-			  "")))
-	(if (string= "" s) "" (format "(?%s)" s)))
-    "")
-  )
 
 ;;; minibuffer functions
 
@@ -347,33 +251,47 @@ See also: http://docs.python.org/library/re.html#re.I"
   (let ((inhibit-read-only t)) 
     (put-text-property (point-min) (minibuffer-prompt-end) 'display prompt)))
 
+(defun vr--set-minibuffer-prompt-regexp ()
+  ;; (format "Regexp: %s" (vr--get-regexp-modifiers-prefix))
+  "Regexp: "
+  )
+
+(defun vr--set-minibuffer-prompt-replace ()
+  (concat "Replace"
+	  (let ((flag-infos (mapconcat 'identity 
+				       (delq nil (list (when vr--replace-preview "preview"))) 
+				       ", ")))
+	    (when (not (string= "" flag-infos ))
+	      (format " (%s)" flag-infos)))
+	  (format " (%s)" (vr--get-regexp-string))
+	  ": "))
+
 (defun vr--update-minibuffer-prompt ()
   (when (and vr--in-minibuffer (minibufferp))
     (vr--minibuffer-set-prompt
      (cond ((equal vr--in-minibuffer 'vr--minibuffer-regexp)
-	    (format "Regexp: %s" (vr--get-regexp-modifiers-prefix)))
+	    (vr--set-minibuffer-prompt-regexp))
 	   ((equal vr--in-minibuffer 'vr--minibuffer-replace)
-	    (concat
-	     "Replace"
-	     (let ((flag-infos (mapconcat 'identity 
-					  (delq nil (list (when vr--use-expression "using expression")
-							  (when vr--replace-preview "preview"))) 
-					  ", ")))
-	       (when (not (string= "" flag-infos ))
-		 (format " (%s)" flag-infos)))
-	     (format " (%s)" (vr--get-regexp-string))
-	     ": "))))))
+	    (vr--set-minibuffer-prompt-replace))))))
 
 (defun vr--minibuffer-message (message)
   "Minibuffer message without timeout"
   (let ((minibuffer-message-timeout nil))
     (minibuffer-message message)))
 
+(defun vr/minibuffer-help-regexp ()
+  (vr--minibuffer-message (format "C-c ?: help,%s C-c a: toggle show all" (if nil " C-c i: toggle case, C-c m: toggle multiline match of ^ and $, C-c s: toggle dot matches newline," "")))
+  )
+
+(defun vr/minibuffer-help-replace ()
+  (vr--minibuffer-message (format "C-c ?: help,%s C-c m: show matches/groups, C-c p: toggle preview, C-c a: toggle show all" (if nil " C-c C-c: toggle expression," "")))
+  )
+
 (defun vr--minibuffer-help ()
   (cond ((equal vr--in-minibuffer 'vr--minibuffer-regexp)
-	 (vr--minibuffer-message (format "C-c ?: help,%s C-c a: toggle show all" (if (vr--regexp-modifiers-enabled) " C-c i: toggle case, C-c m: toggle multiline match of ^ and $, C-c s: toggle dot matches newline," ""))))
+	 (vr/minibuffer-help-regexp))
 	((equal vr--in-minibuffer 'vr--minibuffer-replace)
-	 (vr--minibuffer-message (format "C-c ?: help,%s C-c m: show matches/groups, C-c p: toggle preview, C-c a: toggle show all" (if (not (eq vr/engine 'emacs)) " C-c C-c: toggle expression," ""))))))
+	 (vr/minibuffer-help-replace))))
 
 ;;; overlay functions
 
@@ -427,7 +345,7 @@ See also: http://docs.python.org/library/re.html#re.I"
 	;; not using after-change-hook because this hook applies to the whole minibuffer, including minibuffer-messages
 	;; that disappear after a while.
 	(cond ((equal vr--in-minibuffer 'vr--minibuffer-regexp)
-	       (vr--regexp-feedback))
+	       (vr--feedback))
 	      ((equal vr--in-minibuffer 'vr--minibuffer-replace)
 	       (vr--do-replace-feedback)))))))
 (add-hook 'after-change-functions 'vr--update)
@@ -440,87 +358,7 @@ See also: http://docs.python.org/library/re.html#re.I"
       (when vr/auto-show-help (vr--minibuffer-help)))))
 (add-hook 'minibuffer-setup-hook 'vr--minibuffer-setup)
 
-;;; shell command / parsing functions
-(defun vr--command (command)
-  (let ((stdout-buffer (generate-new-buffer (generate-new-buffer-name " *pyregex stdout*")))
-	output
-	exit-code)
-    (with-current-buffer vr--target-buffer
-      (setq exit-code (call-process-region
-		       vr--target-buffer-start
-		       vr--target-buffer-end
-		       shell-file-name
-		       nil ;; don't delete region
-		       stdout-buffer
-		       nil ;; don't redisplay buffer
-		       shell-command-switch
-		       command)))
-    (with-current-buffer stdout-buffer
-      (setq output (buffer-string))
-      (kill-buffer))
-    (list output exit-code)))
 
-(defun vr--run-command (args success)
-  (multiple-value-bind (output exit-code) (vr--command args)
-    (cond ((equal exit-code 0) 
-	   (funcall success output))
-	  ((equal exit-code 1)
-	   (message "script failed:%s\n" output)))))
-
-(defun vr--not-last-line () 
-  "Output of external script ends in one line of message and one empty line.
-Return t if current line is not the line with the message."
-  (save-excursion (= 0 (forward-line 2))))
-
-(defun vr--current-line ()
-  (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
-
-(defun vr--unescape (s)
-  "Replacement strings returned by external script have escaped newlines and backslashes (so that there can be one replacement per line). Unescape to get back original.
-Escaped newlines are only unescaped if newline is not nil."
-  (setq s (replace-regexp-in-string (regexp-quote "\\n") (regexp-quote "\n") s))
-  (replace-regexp-in-string (regexp-quote "\\\\") (regexp-quote "\\") s))
-
-(defun vr--parse-matches (s callback)
-  "Parse string s with positions of matches and groups as returned by external script. For each position, callback is called with arguments (i j begin end),
-i being the match and j the group index and begin/end being the span of the match.
-The message line is returned.
-"
-  (let (message-line) ;; store message line (last non-empty line of output)
-    (with-temp-buffer
-      (insert s)
-      (goto-char (point-min))
-      (let ((offset vr--target-buffer-start))
-	(loop while (and (vr--not-last-line) (/= (line-beginning-position) (line-end-position))) ;; loop until empty line is reached
-	      for i from 0 do
-	      (loop while (re-search-forward "\\([0-9]+\\) \\([0-9]+\\)" (line-end-position) t) ;; loop integer pairs in line
-		    for j from 0 do
-		    (let ((begin (+ offset (string-to-number (match-string 1))))
-			  (end (+ offset (string-to-number (match-string 2)))))
-		      (funcall callback i j begin end)))
-	      (forward-line 1)))
-      (setq message-line (vr--unescape (vr--current-line))))
-    message-line))
-
-(defun vr--parse-replace (s)
-  "Parse string s with positions of matches and replacements as returned by external script.
-Returns a list, in reverse order, of (replacement begin end i) (i = index of match = index of corresponding overlay)
-and the message line."
-  (let ((replacements (list)) ;; store replacements (lines of output) in list
-	message-line) ;; store message line (last non-empty line of output)
-    (with-temp-buffer
-      (insert s)
-      (goto-char (point-min))
-      (loop while (and (vr--not-last-line) (/= (line-beginning-position) (line-end-position))) ;; loop until empty line is reached
-	    for i from 0 do 
-	    (re-search-forward "\\([0-9]+\\) \\([0-9]+\\) " (line-end-position) t)
-	    (let ((replacement (buffer-substring-no-properties (point) (line-end-position)))
-		  (begin (+ vr--target-buffer-start (string-to-number (match-string 1))))
-		  (end (+ vr--target-buffer-start (string-to-number (match-string 2)))))
-	      (setq replacements (cons (list replacement begin end i) replacements)))
-	    (forward-line 1))
-      (setq message-line (vr--unescape (vr--current-line))))
-    (list replacements message-line)))
 
 ;;; helper functions
 
@@ -533,46 +371,34 @@ and the message line."
   (mapconcat 'identity (delq nil (mapcar (lambda (msg) (if (or (not msg) (string= "" msg)) nil msg)) msgs)) " - "))
 
 ;;; show feedback functions
-(defun vr--regexp-feedback-function ()
-  (cond
-   ((eq vr/engine 'emacs) (vr--regexp-feedback-function-emacs))
-   (t (vr--regexp-feedback-function-external))))
-
-(defun vr--regexp-feedback-function-external ()
-  "Feedback function for search using an external command."
-  (vr--run-command 
-   (format "%s matches --regexp %s %s" (vr--get-command) (shell-quote-argument (vr--get-regexp-string)) (when vr--feedback-limit (format "--feedback-limit %s" vr--feedback-limit)))
-   (lambda (output)
-     (vr--parse-matches
-      output 
-      'vr--regexp-feedback-match-callback))))
-
-(defun vr--regexp-feedback-function-emacs ()
+(defun vr--feedback-function (forward feedback-limit callback)
   "Feedback function for emacs-style regexp search"
-  (let ((regexp-string (vr--get-regexp-string))
-	(message-line "")
+  (let ((message-line "")
 	(err))
     (with-current-buffer vr--target-buffer
       (save-excursion
-	(goto-char vr--target-buffer-start)
+	(goto-char (if forward vr--target-buffer-start vr--target-buffer-end))
 	(let ((i 0)
 	      (looping t))
 	  (while (and looping
-		      (not limit-reached)
+		      (or (not feedback-limit) (< i feedback-limit))
 		      (condition-case err
-			  (re-search-forward regexp-string vr--target-buffer-end t)
+			  (if forward
+			      (re-search-forward regexp-string vr--target-buffer-end t)
+			    (re-search-backward regexp-string vr--target-buffer-start t))
 			('invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
 	    (loop for (start end) on (match-data) by 'cddr
 		  for j from 0 do
-		  (vr--regexp-feedback-match-callback i j start end))
+		  (funcall callback i j start end))
 	    (when (= (match-beginning 0) (match-end 0))
-	      (if (> vr--target-buffer-end (point))
-		  (forward-char) ;; don't get stuck on zero-width matches
-		(setq looping nil)))
+	      (cond ;; don't get stuck on zero-width matches
+	       ((and forward (> vr--target-buffer-end (point))) (forward-char))
+	       ((and (not forward) (< vr--target-buffer-start (point))) (backward-char))
+	       (t (setq looping nil))))
 	    (setq i (1+ i))))))
     message-line))
 
-(defun vr--regexp-feedback-match-callback (i j begin end)
+(defun vr--feedback-match-callback (i j begin end)
   (with-current-buffer vr--target-buffer
   (save-excursion
     (when (= 0 i) ;; first match: if invisible, make it visible.
@@ -589,13 +415,14 @@ and the message line."
     (when (and vr--feedback-limit (= vr--feedback-limit (1+ i)) )
       (setq limit-reached t)))))
 
-(defun vr--regexp-feedback (&optional inhibit-message)
+(defun vr--feedback (&optional inhibit-message)
   "Show visual feedback for matches."
   (vr--delete-overlays)
   (let ((limit-reached nil) 
 	message-line)
-    (setq message-line 
-	  (vr--regexp-feedback-function))
+    (setq message-line
+	  (let ((regexp-string (vr--get-regexp-string)))
+	    (vr--feedback-function t vr--feedback-limit 'vr--feedback-match-callback)))
     (unless inhibit-message
       (let ((msg (vr--compose-messages message-line (when limit-reached (format "%s matches shown, hit C-c a to show all" vr/default-feedback-limit)))))
 	(unless (string= "" msg)
@@ -607,34 +434,16 @@ and the message line."
     (let ((original (with-current-buffer vr--target-buffer (buffer-substring-no-properties (overlay-start overlay) (overlay-end overlay)))))
       (if (or empty-match vr--replace-preview)
 	  (progn 
-	    (overlay-put overlay (if empty-match 'after-string 'display) (propertize (vr--unescape replacement) 'face (nth (mod i (length vr--match-faces)) vr--match-faces)))
+	    (overlay-put overlay (if empty-match 'after-string 'display) (propertize replacement 'face (nth (mod i (length vr--match-faces)) vr--match-faces)))
 	    (overlay-put overlay 'priority (+ vr--overlay-priority 2)))
 	(progn
 	  ;;(overlay-put overlay 'display nil)
 	  (overlay-put overlay 'after-string 
-		       (propertize (format " => %s" (vr--unescape replacement)) 'face (nth (mod i (length vr--match-faces)) vr--match-faces)))
+		       (propertize (format " => %s" replacement) 'face (nth (mod i (length vr--match-faces)) vr--match-faces)))
 	  (overlay-put overlay 'priority (+ vr--overlay-priority 0)))))))
 
+
 (defun vr--get-replacements (feedback feedback-limit)
-  (cond
-   ((eq vr/engine 'emacs) (vr--get-replacements-emacs feedback feedback-limit))
-   (t (vr--get-replacements-external feedback feedback-limit))))
-
-(defun vr--get-replacements-external (feedback feedback-limit)
-  "Get replacements using an external command."
-  (vr--run-command 
-   (format "%s replace %s %s %s --regexp %s --replace %s"
-	   (vr--get-command)
-	   (if feedback "--feedback" "")
-	   (if feedback-limit
-	       (format "--feedback-limit %s" feedback-limit)
-	     "")
-	   (if vr--use-expression "--eval" "")
-	   (shell-quote-argument (vr--get-regexp-string))
-	   (shell-quote-argument replace-string))
-   'vr--parse-replace))
-
-(defun vr--get-replacements-emacs (feedback feedback-limit)
   "Get replacements using emacs-style regexp."
   (let ((regexp-string (vr--get-regexp-string))
 	(message-line "")
@@ -672,7 +481,7 @@ and the message line."
 
 (defun vr--do-replace-feedback ()
   "Show visual feedback for replacements."
-  (vr--regexp-feedback t) ;; only really needed when regexp has not been changed from default (=> no overlays have been created)
+  (vr--feedback t) ;; only really needed when regexp has not been changed from default (=> no overlays have been created)
   (vr--delete-overlay-displays)
   (let ((replace-string (minibuffer-contents-no-properties)))
     (multiple-value-bind (replacements message-line) (vr--get-replacements t vr--feedback-limit)
@@ -697,7 +506,7 @@ and the message line."
 	      (setq replace-count (1+ replace-count))
 	      (multiple-value-bind (replacement begin end i) replacement-info
 		;; replace match
-		(let ((replacement (vr--unescape replacement)))
+		(let ((replacement replacement))
 		  (with-current-buffer vr--target-buffer
 		    (save-excursion
 		      ;; first insert, then delete
@@ -714,13 +523,12 @@ and the message line."
 	replace-count))))
 
 (defun vr--interactive-get-args ()
-  "Get interactive args for the vr/replace function."
+  "Get interactive args for the vr/replace and vr/query-replace functions."
   (unwind-protect 
       (progn
 	(let ((buffer-read-only t)) ;; make target buffer
 	  (when vr--in-minibuffer (error "visual-regexp already in use."))
 	  (setq vr--target-buffer (current-buffer))
-	  (setq vr--use-expression current-prefix-arg)
 	  (setq vr--target-buffer-start (if (and transient-mark-mode mark-active) 
 						 (region-beginning)
 					       (point)))
@@ -728,8 +536,9 @@ and the message line."
 					       (region-end)
 					     (point-max)))
 
+	  (run-hooks 'vr/initialize-hook)
 	  (setq vr--feedback-limit vr/default-feedback-limit)
-	  (setq vr--regexp-modifiers (copy-sequence vr/default-regexp-modifiers))
+	  
 	  (setq vr--replace-preview vr/default-replace-preview)
 
 	  (save-excursion
@@ -755,15 +564,13 @@ and the message line."
 	  (list vr--regexp-string 
 		vr--replace-string
 		vr--target-buffer-start
-		vr--target-buffer-end
-		vr--regexp-modifiers
-		vr--use-expression)))
+		vr--target-buffer-end)))
     (progn ;; execute on finish
       (setq vr--in-minibuffer nil)
       (vr--delete-overlay-displays)
       (vr--delete-overlays))))
 
-(defun vr/replace (regexp replace start end &optional modifiers use-expression)
+(defun vr/replace (regexp replace start end)
   "Regexp-replace with interactive feedback, using Python regular expressions. 
 When used interactively with prefix arg, the replacement string is a Python expression. The Python expression has access to the following variables:
 - i: the index of the match
@@ -790,8 +597,6 @@ replace: \"\\n{}. {}\".format(i+1, \\0)
 	(setq vr--target-buffer (current-buffer)
 	      vr--target-buffer-start start
 	      vr--target-buffer-end end
-	      vr--regexp-modifiers (if modifiers modifiers (copy-sequence vr/default-regexp-modifiers))
-	      vr--use-expression use-expression
 	      vr--regexp-string regexp
 	      vr--replace-string replace)
 	;; do replacement
@@ -799,20 +604,23 @@ replace: \"\\n{}. {}\".format(i+1, \\0)
     ;; execute on finish
     (setq vr--in-minibuffer nil)))
 
-
 ;; isearch starts here
 
-(defun vr/isearch-forward()
-  "Like isearch-forward, but using Python regular expressions."
+(defun vr/isearch-forward ()
+  "Like isearch-forward, but using Python (or custom) regular expressions."
   (interactive)
-  (let ((isearch-search-fun-function 'vr/isearch-search-fun-function))
-    (isearch-forward-regexp)))
+  (if t ;; todo engine
+      (isearch-forward-regexp)
+    (let ((isearch-search-fun-function 'vr/isearch-search-fun-function))
+      (isearch-forward-regexp))))
 
-(defun vr/isearch-backward()
-  "Like isearch-backward, but using Python regular expressions."
+(defun vr/isearch-backward ()
+  "Like isearch-backward, but using Python (or custom) regular expressions."
   (interactive)
-  (let ((isearch-search-fun-function 'vr/isearch-search-fun-function))
-    (isearch-backward-regexp)))
+  (if t ;; todo engine
+    (isearch-backward-regexp)  
+    (let ((isearch-search-fun-function 'vr/isearch-search-fun-function))
+      (isearch-backward-regexp))))
 
 (defvar vr--isearch-cache-key nil)
 (defvar vr--isearch-cache-val nil)
@@ -851,7 +659,8 @@ replace: \"\\n{}. {}\".format(i+1, \\0)
   (let* ((is-called-from-lazy-highlighting bound) ;; we assume only lazy highlighting sets a bound. isearch does not, and neither does our own vr/query-replace.
 	 matches-vec ;; stores matches from regexp.py
 	 message-line ;; message from regexp.py
-	 (regexp (if case-fold-search (concat "(?i)" string) string))
+	 (regexp string ;; (if case-fold-search (concat "(?i)" string) string)
+		 )
 	 (start
 	  (if forward 
 	      (if is-called-from-lazy-highlighting (window-start (selected-window)) (point))
@@ -867,35 +676,37 @@ replace: \"\\n{}. {}\".format(i+1, \\0)
 	(setq vr--target-buffer-start start
 	      vr--target-buffer-end end
 	      vr--target-buffer (current-buffer))
-	(vr--run-command 
-	 (format "%s matches --regexp %s %s %s" 
-		 (vr--get-command) (shell-quote-argument regexp) 
-		 (if count
-		     (format "--feedback-limit %s" count)
-		   ;; if no bound, the rest of the buffer is searched for the first match -> need only one match
-		   (if bound "" "--feedback-limit 1")) 
-		 (if forward "" "--backwards"))
-	 (lambda (output)
-	   ;; initialize matches-vec
-	   (setq matches-vec (make-vector 
-			      (with-temp-buffer (insert output) (- (line-number-at-pos (point-max)) 2)) ;; number of matches
-			      nil))
-	   (let ((cur-match (list)))
-	     (setq message-line
-		   ;; populate matches-vec 
-		   (vr--parse-matches
-		    output 
-		    (lambda (i j begin end) 
-		      (progn
-			(when (and (= j 0) (> i 0))
-			  (aset matches-vec (- i 1) (nreverse cur-match))
-			  (setq cur-match (list)))
-			(setq cur-match (cons end (cons begin cur-match)))))))
-	     (when cur-match
-	       (aset matches-vec (- (length matches-vec) 1) (nreverse cur-match))))
-	   (when is-called-from-lazy-highlighting ;; store in cache
-	     (setq vr--isearch-cache-key cache-key
-		   vr--isearch-cache-val matches-vec))))))
+
+	(let ((matches-list (list))
+	      (number-of-matches 0))
+	  (setq message-line
+		(let ((regexp-string regexp))
+		  (vr--feedback-function
+		   forward
+		   (if count
+		       count
+		     ;; if no bound, the rest of the buffer is searched for the first match -> need only one match
+		     (if bound nil 1))
+		   (lambda (i j begin end)
+		     (when (= j 0) (setq number-of-matches (1+ number-of-matches)))
+		     (setq matches-list (cons (list i j begin end) matches-list))))))
+
+	  ;; convert list to vector
+	  (setq matches-vec (make-vector number-of-matches nil))
+	  (let ((cur-match (list)))
+	    (mapc (lambda (el)
+		    (multiple-value-bind (i j begin end) el
+		      (when (and (= j 0) (> i 0))
+		      	(aset matches-vec (- i 1) (nreverse cur-match))
+		      	(setq cur-match (list)))
+		      (setq cur-match (cons end (cons begin cur-match)))))
+		  (nreverse matches-list))
+	    (when cur-match
+	      (aset matches-vec (- (length matches-vec) 1) (nreverse cur-match)))))
+	(when is-called-from-lazy-highlighting ;; store in cache
+	  (setq vr--isearch-cache-key cache-key
+		vr--isearch-cache-val matches-vec))))
+    
     (let ((match (vr--isearch-find-match matches-vec (point))))
       (if match
 	  (progn
@@ -932,7 +743,7 @@ replace: \"\\n{}. {}\".format(i+1, \\0)
 RET or `q' to exit, Period to replace one match and exit,
 Comma to replace but not move point immediately,
 C-r [not supported in visual-regexp],
-C-w to delete match and recursive edit,
+C-w [not supported in visual-regexp],
 C-l to clear the screen, redisplay, and offer same replacement again,
 ! to replace all remaining matches with no more questions,
 ^ [not supported in visual-regexp],
@@ -951,19 +762,16 @@ E [not supported in visual-regexp]"
     map
     ))
 
-(defun vr/query-replace (regexp replace start end &optional modifiers use-expression)
+(defun vr/query-replace (regexp replace start end)
   "Use vr/query-replace like you would use query-replace-regexp."
   (interactive 
    (vr--interactive-get-args))
-
   (unwind-protect 
       (progn 
 	(when vr--in-minibuffer (error "visual-regexp already in use."))
 	(setq vr--target-buffer (current-buffer)
 	      vr--target-buffer-start start
 	      vr--target-buffer-end end
-	      vr--regexp-modifiers (if modifiers modifiers (copy-sequence vr/default-regexp-modifiers))
-	      vr--use-expression use-expression
 	      vr--regexp-string regexp
 	      vr--replace-string replace)
 	(let ((replace-string vr--replace-string))
@@ -981,7 +789,7 @@ E [not supported in visual-regexp]"
   (let* (
 	 ;; isearch is used for highlighting. plug in our search function such that highlighting works correctly.
 	 (isearch-search-fun-function 'vr/isearch-search-fun-function)
-	 (search-function 'vr--isearch-forward)
+	 ;;(search-function 'vr--isearch-forward) 
 	 (query-replace-help vr--query-replace-help)
 	 (search-string from-string)
 	 (real-match-data nil) ; The match data for the current match.
@@ -1108,7 +916,7 @@ E [not supported in visual-regexp]"
 	      (unless (eq def 'recenter)
 		;; Reset recenter cycling order to initial position.
 		(setq recenter-last-op nil)))))
-            
+      
       (replace-dehighlight))
     (unless unread-command-events
       ;; point is set to the end of the last occurrence.

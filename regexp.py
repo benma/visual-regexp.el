@@ -1,24 +1,25 @@
-# Copyright (C) 2012 Marko Bencun
-#
-# Author : benma <mbencun@gmail.com>
+# Copyright (C) 2012-2013 Marko Bencun
+
+# Author : Marko Bencun <mbencun@gmail.com>
 # URL : https://github.com/benma/visual-regexp.el/
-# Version : 0.1
-# Keywords : regexp, replace, python
-#
+# Version : 0.3
+# Keywords : regexp, replace, python, visual, feedback
+
 # This file is part of visual-regexp.
-#
+
 # visual-regexp is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-#
+
 # visual-regexp is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+
 # You should have received a copy of the GNU General Public License
 # along with visual-regexp.  If not, see <http://www.gnu.org/licenses/>.
+
 
 import sys, re
 
