@@ -243,4 +243,136 @@ and the message line."
 		 (shell-quote-argument replace-string))
 	 'vr--parse-replace))))
 
+
+;; isearch starts here
+
+(defun vr/isearch-forward ()
+  "Like isearch-forward, but using Python (or custom) regular expressions."
+  (interactive)
+  (if (eq vr/engine 'emacs)
+      (isearch-forward-regexp)
+    (let ((isearch-search-fun-function 'vr--isearch-search-fun-function))
+      (isearch-forward-regexp))))
+
+(defun vr/isearch-backward ()
+  "Like isearch-backward, but using Python (or custom) regular expressions."
+  (interactive)
+  (if (eq vr/engine 'emacs)
+    (isearch-backward-regexp)  
+    (let ((isearch-search-fun-function 'vr--isearch-search-fun-function))
+      (isearch-backward-regexp))))
+
+(defvar vr--isearch-cache-key nil)
+(defvar vr--isearch-cache-val nil)
+
+(defun vr--isearch-forward (string &optional bound noerror count)
+  (vr--isearch t string bound noerror count))
+
+(defun vr--isearch-backward (string &optional bound noerror count)
+  (vr--isearch nil string bound noerror count))
+
+(defun vr--isearch-find-match (matches start)
+  (let ((i (vr--isearch-find-match-bsearch matches start 0 (- (length matches) 1))))
+    (unless (eq i -1)
+      (aref matches i))))
+
+(defun vr--isearch-find-match-bsearch (matches start left right)
+  (if (= 0 (length matches))
+      -1
+    (let ((mid (/ (+ left right) 2))
+	  (el (if forward 0 1)) ;; 0 => beginning of match; 1 => end of match
+	  (cmp (if forward '<= '>=)))
+      (cond ((eq left right)
+	     (if (funcall cmp start (nth el (aref matches mid)))
+		 left
+	       -1)
+	     )
+	    ((funcall cmp start (nth el (aref matches mid)))
+	     (vr--isearch-find-match-bsearch matches start left mid))
+	    (t
+	     (vr--isearch-find-match-bsearch matches start (1+ mid) right))))))
+
+(defun vr--isearch (forward string &optional bound noerror count)
+  ;; This is be called from isearch. In the first call, bound will be nil to find the next match.
+  ;; Afterwards, lazy highlighting kicks in, which calls this function many times, for different values of (point), always with the same bound (window-end (selected-window)).
+  ;; Calling a process repeatedly is noticeably  slow. To speed the lazy highlighting up, we fetch all matches in the visible window at once and cache them for subsequent calls.
+  (let* ((is-called-from-lazy-highlighting bound) ;; we assume only lazy highlighting sets a bound. isearch does not, and neither does our own vr/query-replace.
+	 matches-vec ;; stores matches from regexp.py
+	 message-line ;; message from regexp.py
+	 (regexp string ;; (if case-fold-search (concat "(?i)" string) string)
+		 )
+	 (start
+	  (if forward 
+	      (if is-called-from-lazy-highlighting (window-start (selected-window)) (point))
+	    (if is-called-from-lazy-highlighting bound (point-min))))
+	 (end
+	  (if forward
+	      (if is-called-from-lazy-highlighting bound (point-max))
+	    (if is-called-from-lazy-highlighting (window-end (selected-window)) (point))))
+	 (cache-key (list regexp start end)))
+    (if (and is-called-from-lazy-highlighting (equal vr--isearch-cache-key cache-key))
+	(setq matches-vec vr--isearch-cache-val) ;; cache hit
+      (progn ;; no cache hit, populate matches-vec
+	(setq vr--target-buffer-start start
+	      vr--target-buffer-end end
+	      vr--target-buffer (current-buffer))
+
+	(let ((matches-list (list))
+	      (number-of-matches 0))
+	  (setq message-line
+		(let ((regexp-string regexp))
+		  (vr--feedback-function
+		   forward
+		   (if count
+		       count
+		     ;; if no bound, the rest of the buffer is searched for the first match -> need only one match
+		     (if bound nil 1))
+		   (lambda (i j begin end)
+		     (when (= j 0) (setq number-of-matches (1+ number-of-matches)))
+		     (setq matches-list (cons (list i j begin end) matches-list))))))
+
+	  ;; convert list to vector
+	  (setq matches-vec (make-vector number-of-matches nil))
+	  (let ((cur-match (list)))
+	    (mapc (lambda (el)
+		    (multiple-value-bind (i j begin end) el
+		      (when (and (= j 0) (> i 0))
+		      	(aset matches-vec (- i 1) (nreverse cur-match))
+		      	(setq cur-match (list)))
+		      (setq cur-match (cons end (cons begin cur-match)))))
+		  (nreverse matches-list))
+	    (when cur-match
+	      (aset matches-vec (- (length matches-vec) 1) (nreverse cur-match)))))
+	(when is-called-from-lazy-highlighting ;; store in cache
+	  (setq vr--isearch-cache-key cache-key
+		vr--isearch-cache-val matches-vec))))
+    
+    (let ((match (vr--isearch-find-match matches-vec (point))))
+      (if match
+	  (progn
+	    (set-match-data (mapcar 'copy-marker match)) ;; needed for isearch 
+	    (if forward
+		(goto-char (nth 1 match)) ;; move to end of match
+	      (goto-char (nth 0 match)) ;; move to beginning of match
+	      ))
+	(progn 
+	  (set-match-data (list 0 0))
+	  (when (string= "Invalid:" (substring message-line 0 8))
+	    (signal 'invalid-regexp (list message-line))))))))
+
+(defun vr--isearch-search-fun-function ()
+  "To enable vr/isearch, set isearch-search-fun-function to vr--isearch-search-fun-function, i.e. `(setq isearch-search-fun-function 'vr--isearch-search-fun-function)`."
+  ;; isearch-search-fun is a function that returns the function that does the search. It calls isearch-search-fun-function (if it exists) to do its job.
+  (if isearch-regexp ;; let us handle regexp search
+      (if isearch-forward 'vr--isearch-forward 'vr--isearch-backward)
+    (let ((isearch-search-fun-function nil)) ;; fall back to the default implementation of isearch, which will handle regular search and word search.
+      (isearch-search-fun))))
+
+(add-hook 'isearch-mode-end-hook (lambda ()
+				   (setq vr--isearch-cache-key nil
+					 vr--isearch-cache-val nil)))
+
+
+
+
 (provide 'visual-ext-regexp)
