@@ -86,7 +86,7 @@
 
 (defface vr/match-1
   '((((class color) (background light))
-     :background "cadetblue")
+     :background "pale turquoise")
     (((class color) (background dark))
      :background "dodgerblue4")
     (t
@@ -569,24 +569,7 @@ If nil, don't limit the number of matches shown in visual feedback."
       (vr--delete-overlays))))
 
 (defun vr/replace (regexp replace start end)
-  "Regexp-replace with interactive feedback, using Python regular expressions. 
-When used interactively with prefix arg, the replacement string is a Python expression. The Python expression has access to the following variables:
-- i: the index of the match
-- m: the match object
-- \\0, \\1, ...: captured groups (those are aliases for m.group(0), m.group(1), ...).
-
-Example 1: 
-regexp: abcd(.)(.)
-replace: abc\\2\\1
-
-Example 2: capitalize every word (use prefix arg to use a Python expression)
-regexp: \\b\\w
-replace: \\0.upper()
-
-Example 3: enumerate all words and put them on new lines (use prefix arg to use a Python expression)
-regexp: \\w+
-replace: \"\\n{}. {}\".format(i+1, \\0)
-"
+  "Regexp-replace with interactive feedback, using Python regular expressions."
   (interactive 
    (vr--interactive-get-args))
   (unwind-protect 
