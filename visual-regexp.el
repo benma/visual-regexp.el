@@ -702,7 +702,8 @@ E [not supported in visual-regexp]"
 	      ;; occurrence. 
 	      (while (not done)
 		;; show replacement feedback for current occurrence
-		(vr--do-replace-feedback-match-callback replacement (+ cumulative-offset begin) (+ cumulative-offset end) i)
+		(unless replaced
+		  (vr--do-replace-feedback-match-callback replacement (+ cumulative-offset begin) (+ cumulative-offset end) i))
 		;; Bind message-log-max so we don't fill up the message log
 		;; with a bunch of identical messages.
 		(let ((message-log-max nil))
@@ -775,7 +776,10 @@ E [not supported in visual-regexp]"
 		  (setq cumulative-offset (+ cumulative-offset (- (length next-replacement) (- end begin)))))
 		(unless (eq def 'recenter)
 		  ;; Reset recenter cycling order to initial position.
-		  (setq recenter-last-op nil))))
+		  (setq recenter-last-op nil))
+		;; in case of 'act-and-show: delete overlay display or it will still be
+		;; visible even though the replacement has been made
+		(when replaced (vr--delete-overlay-display (vr--get-overlay i 0)))))
 
 	    ;; occurrence has been handled
 	    ;; delete feedback overlay
