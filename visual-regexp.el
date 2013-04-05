@@ -1,11 +1,11 @@
 ;;; visual-regexp.el --- A regexp/replace command for Emacs with interactive visual feedback
 
-;; Copyright (C) 2012-2013 Marko Bencun
+;; Copyright (C) 2013 Marko Bencun
 
-;; Author : Marko Bencun <mbencun@gmail.com>
-;; URL : https://github.com/benma/visual-regexp.el/
-;; Version : 0.3
-;; Keywords : regexp, replace, python, visual, feedback
+;; Author: Marko Bencun <mbencun@gmail.com>
+;; URL: https://github.com/benma/visual-regexp.el/
+;; Version: 0.1
+;; Keywords: regexp, replace, visual, feedback
 
 ;; This file is part of visual-regexp.
 
@@ -61,16 +61,14 @@
 ;; To customize, use: M-x customize-group [RET] visual-regexp.
 ;; You can specify how to invoke the Python interpreter by modifying the vr/command-python variable. The default is "python /path/to/regexp.py".
 ;;
-;; Execute C-h f "vr/replace" to read more and see examples.
 
-;; Code goes here
+;;; Code:
 
 (unless (fboundp 'make-overlay)
   (require 'overlay))
 
-;; cl is used for (loop ...) macro
+;; cl is used for the (loop ...) macro
 (require 'cl)
-;;(require 'visual-ext-regexp)
 
 ;;; faces
 
