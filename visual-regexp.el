@@ -5,6 +5,7 @@
 ;; Author: Marko Bencun <mbencun@gmail.com>
 ;; URL: https://github.com/benma/visual-regexp.el/
 ;; Version: 0.1
+;; Package-Requires: ((cl-lib "0.2"))
 ;; Keywords: regexp, replace, visual, feedback
 
 ;; This file is part of visual-regexp.
@@ -60,7 +61,7 @@
   (require 'overlay))
 
 ;; cl is used for the (loop ...) macro
-(require 'cl)
+(require 'cl-lib)
 
 ;;; faces
 
@@ -317,7 +318,7 @@ If nil, don't limit the number of matches shown in visual feedback."
 (defun vr--delete-overlay-displays ()
   "Delete the display of all visible overlays. Call before vr--delete-overlays."
   (mapc (lambda (overlay)
-          (multiple-value-bind (i j) (overlay-get overlay 'vr-ij)
+          (cl-multiple-value-bind (i j) (overlay-get overlay 'vr-ij)
             (when (= 0 j)
               (vr--delete-overlay-display overlay))))
         vr--visible-overlays))
@@ -377,9 +378,9 @@ If nil, don't limit the number of matches shown in visual feedback."
                             (re-search-backward regexp-string vr--target-buffer-start t))
                         ('invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
             (when (or (not feedback-limit) (< i feedback-limit)) ;; let outer loop finish so we can get the matches count
-              (loop for (start end) on (match-data) by 'cddr
-                    for j from 0 do
-                    (funcall callback i j start end)))
+              (cl-loop for (start end) on (match-data) by 'cddr
+                       for j from 0 do
+                       (funcall callback i j start end)))
             (when (= (match-beginning 0) (match-end 0))
               (cond ;; don't get stuck on zero-width matches
                ((and forward (> vr--target-buffer-end (point))) (forward-char))
@@ -479,7 +480,7 @@ If nil, don't limit the number of matches shown in visual feedback."
   "Show visual feedback for replacements."
   (vr--feedback t) ;; only really needed when regexp has not been changed from default (=> no overlays have been created)
   (let ((replace-string (minibuffer-contents-no-properties)))
-    (multiple-value-bind (replacements message-line) (vr--get-replacements t vr--feedback-limit)
+    (cl-multiple-value-bind (replacements message-line) (vr--get-replacements t vr--feedback-limit)
       ;; visual feedback for matches
       (mapc (lambda (replacement-info) (apply 'vr--do-replace-feedback-match-callback replacement-info)) replacements)
       (unless (string= "" message-line)
@@ -492,26 +493,26 @@ If nil, don't limit the number of matches shown in visual feedback."
   (vr--delete-overlay-displays)
   (vr--delete-overlays)
   (let ((replace-string vr--replace-string))
-    (multiple-value-bind (replacements message-line) (vr--get-replacements nil nil)
+    (cl-multiple-value-bind (replacements message-line) (vr--get-replacements nil nil)
       (let ((replace-count 0)
             (cumulative-offset 0)
             match-data)
-        (loop for replacement-info in replacements
-              for counter from 0 do
-              (setq replace-count (1+ replace-count))
-              (multiple-value-bind (replacement begin end i) replacement-info
-                ;; replace match
-                (let ((replacement replacement))
-                  (with-current-buffer vr--target-buffer
-                    (save-excursion
-                      ;; first insert, then delete
-                      ;; this ensures that if we had an active region before, the replaced match is still part of the region
-                      (goto-char begin)
-                      (insert replacement)
-                      (setq cumulative-offset (+ cumulative-offset (- (point) end)))
-                      (delete-char (- end begin)))))
-                (when (= 0 counter)
-                  (setq match-data (list begin end)))))
+        (cl-loop for replacement-info in replacements
+                 for counter from 0 do
+                 (setq replace-count (1+ replace-count))
+                 (cl-multiple-value-bind (replacement begin end i) replacement-info
+                   ;; replace match
+                   (let ((replacement replacement))
+                     (with-current-buffer vr--target-buffer
+                       (save-excursion
+                         ;; first insert, then delete
+                         ;; this ensures that if we had an active region before, the replaced match is still part of the region
+                         (goto-char begin)
+                         (insert replacement)
+                         (setq cumulative-offset (+ cumulative-offset (- (point) end)))
+                         (delete-char (- end begin)))))
+                   (when (= 0 counter)
+                     (setq match-data (list begin end)))))
         (unless (or silent (string= "" message-line))
           (vr--minibuffer-message message-line))
         (set-match-data (list (+ cumulative-offset (nth 0 match-data)) (+ cumulative-offset (nth 1 match-data))))
@@ -657,7 +658,7 @@ E [not supported in visual-regexp]"
 
     ;; show visual feedback for all matches
     (mapc (lambda (replacement-info)
-            (multiple-value-bind (replacement begin end i) replacement-info
+            (cl-multiple-value-bind (replacement begin end i) replacement-info
               (vr--feedback-match-callback i 0 begin end)))
           vr--query-replacements)
 
@@ -668,7 +669,7 @@ E [not supported in visual-regexp]"
         ;; Loop finding occurrences that perhaps should be replaced.
         (while (and keep-going vr--query-replacements)
           ;; Advance replacement list
-          (multiple-value-bind (replacement begin end i) (car vr--query-replacements)
+          (cl-multiple-value-bind (replacement begin end i) (car vr--query-replacements)
             (setq next-replacement replacement)
             (goto-char (+ cumulative-offset begin))
             (setq vr--query-replacements (cdr vr--query-replacements))
