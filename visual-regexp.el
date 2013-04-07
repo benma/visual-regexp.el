@@ -379,21 +379,22 @@ If nil, don't limit the number of matches shown in visual feedback."
 	(let ((i 0)
 	      (looping t))
 	  (while (and looping
-		      (or (not feedback-limit) (< i feedback-limit))
 		      (condition-case err
 			  (if forward
 			      (re-search-forward regexp-string vr--target-buffer-end t)
 			    (re-search-backward regexp-string vr--target-buffer-start t))
 			('invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
-	    (loop for (start end) on (match-data) by 'cddr
-		  for j from 0 do
-		  (funcall callback i j start end))
+	    (when (or (not feedback-limit) (< i feedback-limit)) ;; let outer loop finish so we can get the matches count
+	      (loop for (start end) on (match-data) by 'cddr
+		    for j from 0 do
+		    (funcall callback i j start end)))
 	    (when (= (match-beginning 0) (match-end 0))
 	      (cond ;; don't get stuck on zero-width matches
 	       ((and forward (> vr--target-buffer-end (point))) (forward-char))
 	       ((and (not forward) (< vr--target-buffer-start (point))) (backward-char))
 	       (t (setq looping nil))))
-	    (setq i (1+ i))))))
+	    (setq i (1+ i)))
+	  (setq message-line (format "%s matches" i)))))
     message-line))
 
 (defun vr--feedback-match-callback (i j begin end)
@@ -422,7 +423,7 @@ If nil, don't limit the number of matches shown in visual feedback."
 	  (let ((regexp-string (vr--get-regexp-string)))
 	    (vr--feedback-function t vr--feedback-limit 'vr--feedback-match-callback)))
     (unless inhibit-message
-      (let ((msg (vr--compose-messages message-line (when limit-reached (format "%s matches shown, hit C-c a to show all" vr/default-feedback-limit)))))
+      (let ((msg (vr--compose-messages message-line (when limit-reached (format "%s matches shown, hit C-c a to show all" vr--feedback-limit)))))
 	(unless (string= "" msg)
 	  (vr--minibuffer-message msg))))))
 
@@ -453,18 +454,20 @@ If nil, don't limit the number of matches shown in visual feedback."
       (insert buffer-contents)
       (goto-char vr--target-buffer-start)
       	(let ((i 0)
-	      (looping t))
+	      (looping t)
+	      (limit-reached nil))
 	  (while (and
 		  looping
-		  (or (not feedback) (not feedback-limit) (< i feedback-limit))
 		  (condition-case err
 		      (re-search-forward regexp-string vr--target-buffer-end t)
 		    ('invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
 	    (condition-case err
 		(progn
-		  (setq replacements (cons
-				      (list (match-substitute-replacement replace-string) (match-beginning 0) (match-end 0) i)
-				      replacements))
+		  (if (or (not feedback) (not feedback-limit) (< i feedback-limit))
+		    (setq replacements (cons
+					(list (match-substitute-replacement replace-string) (match-beginning 0) (match-end 0) i)
+					replacements))
+		    (setq limit-reached t))
 		  (when (= (match-beginning 0) (match-end 0))
 		    (if (> vr--target-buffer-end (point))
 			(forward-char) ;; don't get stuck on zero-width matches
@@ -473,7 +476,11 @@ If nil, don't limit the number of matches shown in visual feedback."
 	      ('error (progn
 			(setq message-line (car (cdr err)))
 			(setq replacements (list))
-			(setq looping nil)))))))
+			(setq looping nil)))))
+
+	  (if feedback
+	      (setq message-line (vr--compose-messages (format "%s matches" i) (when limit-reached (format "%s matches shown, hit C-c a to show all" feedback-limit))))
+	    (setq message-line (format "replaced %d matches" i)))))
     (list replacements message-line)))
 
 (defun vr--do-replace-feedback ()

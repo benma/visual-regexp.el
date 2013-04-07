@@ -28,15 +28,7 @@ Add the following code to your init file. Of course you can select your own key 
 ```
 To customize, use `M-x customize-group [RET] visual-regexp`. 
 
-## Examples
+An interesting application of this is regexp-renaming a bunch of files directly in a dired buffer with live feedback (using `wdired-change-to-wdired-mode`):
 
-### Example 1
-![Example 1](https://github.com/benma/visual-regexp.el/raw/master/screenshots/montage1.png)
-### Example 2
-Zero-width matches are indicated by a pipe. When replacing using a Python expression, the counter variable `i` is available.
-![Example 2](https://github.com/benma/visual-regexp.el/raw/master/screenshots/montage2.png)
-### Example 3
-![Example 3](https://github.com/benma/visual-regexp.el/raw/master/screenshots/montage3.png)
-### <a name="example4"/>Example 4
-visual-regexp can be combined with `wdired-change-to-wdired-mode` to rename files directly in a dired buffer, using regular expressions with a live preview:
-![Example 3](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp5B.png)
+![entering regexp](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp5A.png)
+![entering replacement](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp5B.png)
