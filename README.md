@@ -28,5 +28,5 @@ To customize, use `M-x customize-group [RET] visual-regexp`.
 
 An interesting application of this is regexp-renaming a bunch of files directly in a dired buffer with live feedback (using `wdired-change-to-wdired-mode`):
 
-![entering regexp](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp5A.png)
-![entering replacement](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp5B.png)
+![entering regexp](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp1A.png)
+![entering replacement](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp1B.png)
