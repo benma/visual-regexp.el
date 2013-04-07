@@ -1,6 +1,6 @@
 # visual-regexp
 
-visual-regexp for Emacs is like `replace-regexp`, but with interactive visual feedback directly in the buffer.
+visual-regexp for Emacs is like `replace-regexp`, but with live  visual feedback directly in the buffer.
 
 While constructing the regexp in the minibuffer, you get live visual feedback for the matches, including group matches:
 
@@ -28,5 +28,8 @@ To customize, use `M-x customize-group [RET] visual-regexp`.
 
 An interesting application of this is regexp-renaming a bunch of files directly in a dired buffer with live feedback (using `wdired-change-to-wdired-mode`):
 
+Construction of the regexp:
 ![entering regexp](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp1A.png)
+
+Construction of the replacement string with inlined preview enabled:
 ![entering replacement](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp1B.png)

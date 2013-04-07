@@ -25,42 +25,34 @@
 ;;; WHAT'S NEW
 ;; 0.1: initial release
 
-;;; INTRODUCTION
-;;
-;; What's This?
-;;
-;; It is a command for emacs which enables you to use Python regular expressions and either a Python string or a Python expression for doing replacements.
+;;; What's This?
+
+;; visual-regexp for Emacs is like `replace-regexp`, but with live  visual feedback directly in the buffer.
 ;; While constructing the regexp in the minibuffer, you get live visual feedback for the matches, including group matches.
 ;; While constructing the replacement in the minibuffer, you get live visual feedback for the replacements.
+;; It can be used to replace all matches in one go (like `replace-regexp`), or a decision can be made on each match (like `query-replace-regexp`).
+;; Thanks to Detlev Zundel for his re-builder.
 
-;; Where does visual-regexp come from?
+;;; Where does visual-regexp come from?
 ;;
 ;; I was not happy with the way I used emacs' replace-regexp before. Constructing the regular expression is error prone and emacs' regular expressions are limited
 ;; (for example, no lookaheads, named groups, etc.).
 ;; Using re-builder to interactively build regular expressions was a step into the right direction, but manually copying over the regexp
 ;; to the minibuffer is cumbersome.
-;; Using the idea of interactive of of re-builder, this package makes it possible to use just the minibuffer to construct (with live visual feedback) the regexp and replacement,
-;; using Emacs style regular expressions, or optionally, Python's regular expressions and Python expressions for the replacement.
-;;
-;; So a thanks to Detlev Zundel for his re-builder.
+;; Using the idea of interactive feedback of re-builder, this package makes it possible to use just the minibuffer to construct (with live visual feedback) the regexp and replacement,
+;; using Emacs style regular expressions, or optionally, regular expressions powered by other (mode modern) engines, for the replacement. For the latter part, see the package visual-regexp-steroids.
 
 ;;; Installation
-;;
-;; Put visual-regexp.el and regexp.py into the same directory.
-;; Add the following code to your init file. Of course you can select
-;; your own key bindings.
+
+;; If you are using Emacs 24, you can get visual-regexp from [melpa](http://melpa.milkbox.net/) with the package manager.
+;; Add the following code to your init file. Of course you can select your own key bindings.
 ;; ----------------------------------------------------------
-;; (add-to-list 'load-path "folder-in-which-visual-regexp-files-are-in/")
+;; (add-to-list 'load-path "folder-in-which-visual-regexp-files-are-in/") ;; if the files are not already in the load path
 ;; (require 'visual-regexp)
 ;; (define-key global-map (kbd "C-c r") 'vr/replace)
 ;; (define-key global-map (kbd "C-c q") 'vr/query-replace)
-;; ;; to use visual-regexp isearch instead of the built-in regexp isearch (invoked by `C-M-s`, `C-M-r`), also include the following lines:
-;; (define-key esc-map (kbd "C-r") 'vr/isearch-backward)
-;; (define-key esc-map (kbd "C-s") 'vr/isearch-forward)
 ;; ----------------------------------------------------------
-;; To customize, use: M-x customize-group [RET] visual-regexp.
-;; You can specify how to invoke the Python interpreter by modifying the vr/command-python variable. The default is "python /path/to/regexp.py".
-;;
+;; To customize, use `M-x customize-group [RET] visual-regexp`. 
 
 ;;; Code:
 
