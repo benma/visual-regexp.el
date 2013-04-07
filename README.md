@@ -1,6 +1,6 @@
 # visual-regexp
 
-visual-regexp for Emacs is like `replace-regexp`, but with live  visual feedback directly in the buffer.
+visual-regexp for Emacs is like `replace-regexp`, but with live  visual feedback directly in the buffer. Check out [visual-regexp-steroids](https://github.com/benma/visual-regexp-steroids.el/) if you want to use modern regular expressions instead of Emacs-style regular expressions.
 
 While constructing the regexp in the minibuffer, you get live visual feedback for the matches, including group matches:
 
