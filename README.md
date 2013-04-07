@@ -12,8 +12,6 @@ While constructing the replacement in the minibuffer, you get live visual feedba
 
 It can be used to replace all matches in one go (like `replace-regexp`), or a decision can be made on each match (like `query-replace-regexp`). 
 
-Besides doing replacements in regular buffers, one of the most interesting uses of visual-regexp is renaming a bunch of files directly in a dired buffer. See [Example 4](#example4).
-
 ## Installation
 
 If you are using Emacs 24, you can get visual-regexp from [melpa](http://melpa.milkbox.net/) with the package manager.
