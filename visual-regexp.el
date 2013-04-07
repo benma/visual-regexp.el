@@ -61,8 +61,7 @@
   (require 'overlay))
 
 ;; cl is used for the (loop ...) macro
-;;(require 'cl-lib)
-(require 'cl)
+(require 'cl-lib)
 
 ;;; faces
 
