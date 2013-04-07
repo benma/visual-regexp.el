@@ -485,7 +485,7 @@ If nil, don't limit the number of matches shown in visual feedback."
       (unless (string= "" message-line)
 	(vr--minibuffer-message message-line)))))
 
-;;; replace / vr/replace
+;;; vr/replace
 
 (defun vr--do-replace (&optional silent)
   "Replace matches."
