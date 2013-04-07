@@ -565,6 +565,7 @@ If nil, don't limit the number of matches shown in visual feedback."
       (vr--delete-overlay-displays)
       (vr--delete-overlays))))
 
+;;;###autoload
 (defun vr/replace (regexp replace start end)
   "Regexp-replace with live visual feedback."
   (interactive 
