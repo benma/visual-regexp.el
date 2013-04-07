@@ -566,7 +566,7 @@ If nil, don't limit the number of matches shown in visual feedback."
       (vr--delete-overlays))))
 
 (defun vr/replace (regexp replace start end)
-  "Regexp-replace with interactive feedback, using Python regular expressions."
+  "Regexp-replace with live visual feedback."
   (interactive 
    (vr--interactive-get-args))
   (unwind-protect 
