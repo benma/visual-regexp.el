@@ -722,7 +722,7 @@ E [not supported in visual-regexp]"
                          (replace-match next-replacement t t)
                          (setq replace-count (1+ replace-count)))
                        (setq keep-going nil
-                             done t r
+                             done t
                              replaced t))
                       ((eq def 'act-and-show)
                        (unless replaced
