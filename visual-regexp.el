@@ -273,13 +273,13 @@ If nil, don't limit the number of matches shown in visual feedback."
 
 
 (defun vr/minibuffer-help-regexp ()
-  (vr--minibuffer-message (format (substitute-command-keys "\\<vr/minibuffer-regexp-keymap>\\[vr--minibuffer-help]: help,%s \\[vr--shortcut-toggle-limit]: toggle show all") (if nil " C-c i: toggle case, C-c m: toggle multiline match of ^ and $, C-c s: toggle dot matches newline," ""))))
+  (vr--minibuffer-message (format (substitute-command-keys "\\<vr/minibuffer-regexp-keymap>\\[vr--minibuffer-help]: helps \\[vr--shortcut-toggle-limit]: toggle show all"))))
 
 (defun vr/minibuffer-help-replace ()
-  (vr--minibuffer-message (format (substitute-command-keys "\\<vr/minibuffer-replace-keymap>\\[vr--minibuffer-help]: help,%s \\[vr--shortcut-show-matches]: show matches/groups, \\[vr--shortcut-toggle-preview]: toggle preview, \\[vr--shortcut-toggle-limit]: toggle show all") (if nil " C-c C-c: toggle expression," ""))))
+  (vr--minibuffer-message (format (substitute-command-keys "\\<vr/minibuffer-replace-keymap>\\[vr--minibuffer-help]: help \\[vr--shortcut-show-matches]: show matches/groups, \\[vr--shortcut-toggle-preview]: toggle preview, \\[vr--shortcut-toggle-limit]: toggle show all"))))
 
 (defun vr--minibuffer-help ()
-
+  (interactive)
   (cond ((equal vr--in-minibuffer 'vr--minibuffer-regexp)
          (vr/minibuffer-help-regexp))
         ((equal vr--in-minibuffer 'vr--minibuffer-replace)
