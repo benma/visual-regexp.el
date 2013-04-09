@@ -615,6 +615,7 @@ E [not supported in visual-regexp]"
     map
     ))
 
+;;;###autoload
 (defun vr/query-replace (regexp replace start end)
   "Use vr/query-replace like you would use query-replace-regexp."
   (interactive
