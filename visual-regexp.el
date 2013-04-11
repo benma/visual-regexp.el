@@ -298,16 +298,14 @@ If nil, don't limit the number of matches shown in visual feedback."
         (overlay-put overlay 'face (nth (mod j (length vr--group-faces)) vr--group-faces)))
       (overlay-put overlay 'priority (+ vr--overlay-priority (if (= j 0) 0 1)))
       (overlay-put overlay 'vr-ij (list i j))
-      (when (= 0 j)
-        (overlay-put overlay 'intangible t))
       (puthash (list i j) overlay vr--overlays))
     overlay))
 
 (defun vr--delete-overlays ()
   "Delete all visible overlays."
   (mapc (lambda (overlay)
-             (delete-overlay overlay))
-           vr--visible-overlays)
+	  (delete-overlay overlay))
+	vr--visible-overlays)
   (setq vr--visible-overlays (list)))
 
 (defun vr--delete-overlay-display (overlay)
@@ -392,20 +390,20 @@ If nil, don't limit the number of matches shown in visual feedback."
 
 (defun vr--feedback-match-callback (i j begin end)
   (with-current-buffer vr--target-buffer
-  (save-excursion
-    (when (= 0 i) ;; first match: if invisible, make it visible.
-      (with-selected-window (vr--target-window)
-        (if (>= begin (window-end nil t))
-            (goto-char begin))))
-    (let ((overlay (vr--get-overlay i j)))
-      (move-overlay overlay begin end vr--target-buffer)
-      (if (and (= 0 j) (= begin end)) ;; empty match; indicate by a pipe
-          (overlay-put overlay 'after-string (propertize "|" 'face (nth (mod i (length vr--match-faces)) vr--match-faces) 'help-echo "empty match"))
-        (overlay-put overlay 'after-string nil))
-      (setq vr--visible-overlays (cons overlay vr--visible-overlays)))
-    ;; mark if we have reached the specified feedback limit
-    (when (and vr--feedback-limit (= vr--feedback-limit (1+ i)) )
-      (setq limit-reached t)))))
+    (save-excursion
+      (when (= 0 i) ;; first match: if invisible, make it visible.
+	(with-selected-window (vr--target-window)
+	  (if (>= begin (window-end nil t))
+	      (goto-char begin))))
+      (let ((overlay (vr--get-overlay i j)))
+	(move-overlay overlay begin end vr--target-buffer)
+	(if (and (= 0 j) (= begin end)) ;; empty match; indicate by a pipe
+	    (overlay-put overlay 'after-string (propertize "|" 'face (nth (mod i (length vr--match-faces)) vr--match-faces) 'help-echo "empty match"))
+	  (overlay-put overlay 'after-string nil))
+	(setq vr--visible-overlays (cons overlay vr--visible-overlays)))
+      ;; mark if we have reached the specified feedback limit
+      (when (and vr--feedback-limit (= vr--feedback-limit (1+ i)) )
+	(setq limit-reached t)))))
 
 (defun vr--feedback (&optional inhibit-message)
   "Show visual feedback for matches."
@@ -443,37 +441,36 @@ If nil, don't limit the number of matches shown in visual feedback."
         (buffer-contents (with-current-buffer vr--target-buffer
                            (buffer-substring-no-properties (point-min) (point-max)))))
 
-    (with-temp-buffer ;; todo: user vr--target-buffer, but goto-char and re-search-forward go crazy when overlays are visible...
-      (insert buffer-contents)
+    (with-current-buffer vr--target-buffer
       (goto-char vr--target-buffer-start)
-        (let ((i 0)
-              (looping t)
-              (limit-reached nil))
-          (while (and
-                  looping
-                  (condition-case err
-                      (re-search-forward regexp-string vr--target-buffer-end t)
-                    ('invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
-            (condition-case err
-                (progn
-                  (if (or (not feedback) (not feedback-limit) (< i feedback-limit))
+      (let ((i 0)
+	    (looping t)
+	    (limit-reached nil))
+	(while (and
+		looping
+		(condition-case err
+		    (re-search-forward regexp-string vr--target-buffer-end t)
+		  ('invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
+	  (condition-case err
+	      (progn
+		(if (or (not feedback) (not feedback-limit) (< i feedback-limit))
                     (setq replacements (cons
                                         (list (match-substitute-replacement replace-string) (match-beginning 0) (match-end 0) i)
                                         replacements))
-                    (setq limit-reached t))
-                  (when (= (match-beginning 0) (match-end 0))
-                    (if (> vr--target-buffer-end (point))
-                        (forward-char) ;; don't get stuck on zero-width matches
-                      (setq looping nil)))
-                  (setq i (1+ i)))
-              ('error (progn
-                        (setq message-line (car (cdr err)))
-                        (setq replacements (list))
-                        (setq looping nil)))))
+		  (setq limit-reached t))
+		(when (= (match-beginning 0) (match-end 0))
+		  (if (> vr--target-buffer-end (point))
+		      (forward-char) ;; don't get stuck on zero-width matches
+		    (setq looping nil)))
+		(setq i (1+ i)))
+	    ('error (progn
+		      (setq message-line (car (cdr err)))
+		      (setq replacements (list))
+		      (setq looping nil)))))
 
-          (if feedback
-              (setq message-line (vr--compose-messages (format "%s matches" i) (when limit-reached (format "%s matches shown, hit C-c a to show all" feedback-limit))))
-            (setq message-line (format "replaced %d matches" i)))))
+	(if feedback
+	    (setq message-line (vr--compose-messages (format "%s matches" i) (when limit-reached (format "%s matches shown, hit C-c a to show all" feedback-limit))))
+	  (setq message-line (format "replaced %d matches" i)))))
     (list replacements message-line)))
 
 (defun vr--do-replace-feedback ()
@@ -526,11 +523,11 @@ If nil, don't limit the number of matches shown in visual feedback."
           (when vr--in-minibuffer (error "visual-regexp already in use."))
           (setq vr--target-buffer (current-buffer))
           (setq vr--target-buffer-start (if (and transient-mark-mode mark-active)
-                                                 (region-beginning)
-                                               (point)))
+					    (region-beginning)
+					  (point)))
           (setq vr--target-buffer-end (if (and transient-mark-mode mark-active)
-                                               (region-end)
-                                             (point-max)))
+					  (region-end)
+					(point-max)))
 
           (run-hooks 'vr/initialize-hook)
           (setq vr--feedback-limit vr/default-feedback-limit)
@@ -649,7 +646,6 @@ E [not supported in visual-regexp]"
          (automatic nil)
          ;; a match can be replaced by a longer/shorter replacement. cumulate the difference
          (cumulative-offset 0)
-         (end vr--target-buffer-end)
          (recenter-last-op nil)	; Start cycling order with initial position.
          (message
           (apply 'propertize
@@ -734,7 +730,7 @@ E [not supported in visual-regexp]"
                        (setq vr--replace-preview (not vr--replace-preview)))
                       ((eq def 'automatic)
                        (setq vr--target-buffer-start (match-beginning 0)
-                             vr--target-buffer-end (+ cumulative-offset end))
+                             vr--target-buffer-end (+ cumulative-offset vr--target-buffer-end))
                        (setq replace-count (+ replace-count (vr--do-replace t)))
                        (setq done t
                              replaced t
