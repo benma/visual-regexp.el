@@ -472,9 +472,7 @@ If nil, don't limit the number of matches shown in visual feedback."
 		    (setq replacements (cons
 					(let ((match-data (mapcar 'marker-position (match-data))))
 					  (list (query-replace-compile-replacement replace-string t) match-data i))
-					;;(list (match-substitute-replacement replace-string) (match-data) i)
-                                        ;;(list (match-substitute-replacement replace-string) (match-beginning 0) (match-end 0) i)
-                                        replacements))
+					replacements))
 		  (setq limit-reached t))
 		(when (= (match-beginning 0) (match-end 0))
 		  (if (> vr--target-buffer-end (point))
@@ -661,13 +659,9 @@ E [not supported in visual-regexp]"
   (or map (setq map vr--query-replace-map))
   (and minibuffer-auto-raise
        (raise-frame (window-frame (minibuffer-window))))
-  (let* (
-         (query-replace-help vr--query-replace-help)
-         (search-string from-string)
-         (next-replacement nil) ;; replacement string for current match
+  (let* ((next-replacement nil) ;; replacement string for current match
          (keep-going t)
          (replace-count 0)
-         (automatic nil)
          ;; a match can be replaced by a longer/shorter replacement. cumulate the difference
          (cumulative-offset 0)
          (recenter-last-op nil)	; Start cycling order with initial position.
@@ -728,7 +722,7 @@ E [not supported in visual-regexp]"
 				    from-string " with "
 				    next-replacement ".\n\n"
 				    (substitute-command-keys
-				     query-replace-help)))
+				     vr--query-replace-help)))
 			   (with-current-buffer standard-output
 			     (help-mode))))
 			((eq def 'exit)
