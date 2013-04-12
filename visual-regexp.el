@@ -428,7 +428,7 @@ If nil, don't limit the number of matches shown in visual feedback."
     (set-match-data match-data)
     (if (stringp replacement)
 	(match-substitute-replacement replacement)
-      (funcall (car replacement) (cdr replacement) i))))
+      (match-substitute-replacement (funcall (car replacement) (cdr replacement) i)))))
 
 (defun vr--do-replace-feedback-match-callback (replacement match-data i)
   (let ((begin (cl-first match-data))
@@ -455,7 +455,6 @@ If nil, don't limit the number of matches shown in visual feedback."
         (err)
         (buffer-contents (with-current-buffer vr--target-buffer
                            (buffer-substring-no-properties (point-min) (point-max)))))
-
     (with-current-buffer vr--target-buffer
       (goto-char vr--target-buffer-start)
       (let ((i 0)
@@ -685,10 +684,11 @@ E [not supported in visual-regexp]"
         (while (and keep-going vr--query-replacements)
           ;; Advance replacement list
           (cl-multiple-value-bind (replacement match-data i) (car vr--query-replacements)
+	    (setq match-data (mapcar (lambda (el) (+ cumulative-offset el)) match-data))
 	    (let ((begin (cl-first match-data))
 		  (end (cl-second match-data)))
 	      (setq next-replacement (vr--get-replacement replacement match-data replace-count))
-	      (goto-char (+ cumulative-offset begin))
+	      (goto-char begin)
 	      (setq vr--query-replacements (cdr vr--query-replacements))
 
 	      ;; default for new occurrence: no preview
@@ -702,7 +702,8 @@ E [not supported in visual-regexp]"
 		(while (not done)
 		  ;; show replacement feedback for current occurrence
 		  (unless replaced
-		    (vr--do-replace-feedback-match-callback next-replacement (mapcar (lambda (el) (+ cumulative-offset el)) match-data) i))
+		    (vr--do-replace-feedback-match-callback next-replacement match-data i))
+		  (message "HU %s" next-replacement)
 		  ;; Bind message-log-max so we don't fill up the message log
 		  ;; with a bunch of identical messages.
 		  (let ((message-log-max nil))
@@ -712,7 +713,7 @@ E [not supported in visual-regexp]"
 		  (setq def (lookup-key map key))
 
 		  ;; can use replace-match afterwards
-		  (set-match-data (mapcar 'copy-marker (list (+ cumulative-offset begin) (+ cumulative-offset end))))
+		  (set-match-data match-data)
 
 		  ;; Restore the match data while we process the command.
 		  (cond ((eq def 'help)
