@@ -703,7 +703,6 @@ E [not supported in visual-regexp]"
 		  ;; show replacement feedback for current occurrence
 		  (unless replaced
 		    (vr--do-replace-feedback-match-callback next-replacement match-data i))
-		  (message "HU %s" next-replacement)
 		  ;; Bind message-log-max so we don't fill up the message log
 		  ;; with a bunch of identical messages.
 		  (let ((message-log-max nil))
