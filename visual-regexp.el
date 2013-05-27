@@ -687,10 +687,11 @@ E [not supported in visual-regexp]"
 	    (setq match-data (mapcar (lambda (el) (+ cumulative-offset el)) match-data))
 	    (let ((begin (cl-first match-data))
 		  (end (cl-second match-data)))
+	      (setq next-replacement-orig replacement)
 	      (setq next-replacement (vr--get-replacement replacement match-data replace-count))
 	      (goto-char begin)
 	      (setq vr--query-replacements (cdr vr--query-replacements))
-
+	      
 	      ;; default for new occurrence: no preview
 	      (setq vr--replace-preview nil)
 
@@ -702,7 +703,7 @@ E [not supported in visual-regexp]"
 		(while (not done)
 		  ;; show replacement feedback for current occurrence
 		  (unless replaced
-		    (vr--do-replace-feedback-match-callback next-replacement match-data i))
+		    (vr--do-replace-feedback-match-callback next-replacement-orig match-data i))
 		  ;; Bind message-log-max so we don't fill up the message log
 		  ;; with a bunch of identical messages.
 		  (let ((message-log-max nil))
