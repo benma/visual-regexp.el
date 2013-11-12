@@ -57,7 +57,6 @@
 ;; To customize, use `M-x customize-group [RET] visual-regexp`.
 
 ;;; Code:
-
 (unless (fboundp 'make-overlay)
   (require 'overlay))
 
@@ -134,6 +133,16 @@ If nil, don't limit the number of matches shown in visual feedback."
 (defcustom vr/default-replace-preview nil
   "Preview of replacement activated by default? If activated, the original is not shown alongside the replacement."
   :type 'boolean
+  :group 'visual-regexp)
+
+(defcustom vr/query-replace-from-history-variable query-replace-from-history-variable
+  "History list to use for the FROM argument. The default is to use the same history as Emacs' query-replace commands."
+  :type 'symbol
+  :group 'visual-regexp)
+
+(defcustom vr/query-replace-to-history-variable query-replace-to-history-variable
+  "History list to use for the TO argument. The default is to use the same history as Emacs' query-replace commands."
+  :type 'symbol
   :group 'visual-regexp)
 
 (defvar vr/initialize-hook nil
@@ -564,7 +573,8 @@ If nil, don't limit the number of matches shown in visual feedback."
               (setq vr--regexp-string
                     (read-from-minibuffer
                      " " ;; prompt will be  set in vr--minibuffer-setup
-                     nil vr/minibuffer-regexp-keymap))
+                     nil vr/minibuffer-regexp-keymap
+		     nil vr/query-replace-from-history-variable))
               ;;(setq vr--regexp-string (format "%s%s" (vr--get-regexp-modifiers-prefix) vr--regexp-string))
 
               (setq vr--in-minibuffer 'vr--minibuffer-replace)
@@ -572,7 +582,8 @@ If nil, don't limit the number of matches shown in visual feedback."
               (setq vr--replace-string
                     (read-from-minibuffer
                      " " ;; prompt will be  set in vr--minibuffer-setup
-                     nil vr/minibuffer-replace-keymap))))
+                     nil vr/minibuffer-replace-keymap
+		     nil vr/query-replace-to-history-variable))))
           ;; Successfully got the args, deactivate mark now. If the command was aborted (C-g), the mark (region) would remain active.
           (deactivate-mark)
           (list vr--regexp-string
