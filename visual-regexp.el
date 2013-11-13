@@ -613,6 +613,8 @@ visible all the time in the minibuffer."
                 vr--target-buffer-end)))
     (progn ;; execute on finish
       (setq vr--in-minibuffer nil)
+      (unless (overlayp vr--minibuffer-message-overlay)
+	(delete-overlay vr--minibuffer-message-overlay))
       (vr--delete-overlay-displays)
       (vr--delete-overlays))))
 
