@@ -192,6 +192,8 @@ If nil, don't limit the number of matches shown in visual feedback."
 (defvar vr--visible-overlays (list)
   "Overlays currently visible.")
 
+(defvar vr--minibuffer-message-overlay nil)
+
 ;;; keymap
 
 (defvar vr/minibuffer-regexp-keymap
@@ -280,11 +282,29 @@ If nil, don't limit the number of matches shown in visual feedback."
            ((equal vr--in-minibuffer 'vr--minibuffer-replace)
             (vr--set-minibuffer-prompt-replace))))))
 
-(defun vr--minibuffer-message (message)
-  "Minibuffer message without timeout"
-  (let ((minibuffer-message-timeout nil))
-    (minibuffer-message message)))
 
+(defun vr--minibuffer-message (message &rest args)
+  "Adaptation of minibuffer-message that does not use sit-for
+to make the message disappear. The problem with this was that during sit-for,
+ the cursor was shown at the beginning of the message regardless of whether
+ the point was actually there or not. Workaround: we let the message stay
+visible all the time in the minibuffer."
+  (if (not (and vr--in-minibuffer (minibufferp (current-buffer))))
+      ;; fallback
+      (apply 'minibuffer-message message args)
+    ;; Clear out any old echo-area message to make way for our new thing.
+    (message nil)
+    (setq message (concat " [" message "]"))
+    (when args (setq message (apply 'format message args)))
+    (unless (zerop (length message))
+      ;; The current C cursor code doesn't know to use the overlay's
+      ;; marker's stickiness to figure out whether to place the cursor
+      ;; before or after the string, so let's spoon-feed it the pos.
+      (put-text-property 0 1 'cursor t message))
+    (unless (overlayp vr--minibuffer-message-overlay)
+      (setq vr--minibuffer-message-overlay (make-overlay (point-max) (point-max) nil t t)))
+    (move-overlay vr--minibuffer-message-overlay (point-max) (point-max))
+    (overlay-put vr--minibuffer-message-overlay 'after-string message)))
 
 (defun vr/minibuffer-help-regexp ()
   (vr--minibuffer-message (format (substitute-command-keys "\\<vr/minibuffer-regexp-keymap>\\[vr--minibuffer-help]: helps \\[vr--shortcut-toggle-limit]: toggle show all"))))
