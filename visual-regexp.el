@@ -640,7 +640,7 @@ visible all the time in the minibuffer."
     (activate-mark)
     (let ((regexp-string (vr--get-regexp-string))
 	  ;; disable deactivating of mark after buffer-editing commands
-	  ;; (which happen for example in visual-regexp-steroids/vr--parse-matches
+	  ;; (which happens for example in visual-regexp-steroids/vr--parse-matches
 	  ;; during the callback).
 	  (deactivate-mark nil)
 	  (first-fake-cursor nil))
