@@ -17,13 +17,14 @@ It can be used to replace all matches in one go (like `replace-regexp`), or a de
 If you are using Emacs 24, you can get visual-regexp from [melpa](http://melpa.milkbox.net/) with the package manager.
 
 Add the following code to your init file. Of course you can select your own key bindings.
+Note: `vr/mc-mark` is an interface to [multiple-cursors](https://github.com/magnars/multiple-cursors.el/).
 
 ```Lisp
 (add-to-list 'load-path "folder-in-which-visual-regexp-files-are-in/") ;; if the files are not already in the load path
 (require 'visual-regexp)
 (define-key global-map (kbd "C-c r") 'vr/replace)
 (define-key global-map (kbd "C-c q") 'vr/query-replace)
-;; if you use [multiple-cursors](https://github.com/magnars/multiple-cursors.el/), this is for you:
+;; if you use multiple-cursors, this is for you:
 (define-key global-map (kbd "C-c m") 'vr/mc-mark)
 ```
 To customize, use `M-x customize-group [RET] visual-regexp`. 
