@@ -23,6 +23,8 @@ Add the following code to your init file. Of course you can select your own key 
 (require 'visual-regexp)
 (define-key global-map (kbd "C-c r") 'vr/replace)
 (define-key global-map (kbd "C-c q") 'vr/query-replace)
+;; if you use [multiple-cursors](https://github.com/magnars/multiple-cursors.el/), this is for you:
+(define-key global-map (kbd "C-c m") 'vr/mc-mark)
 ```
 To customize, use `M-x customize-group [RET] visual-regexp`. 
 

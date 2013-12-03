@@ -4,7 +4,7 @@
 
 ;; Author: Marko Bencun <mbencun@gmail.com>
 ;; URL: https://github.com/benma/visual-regexp.el/
-;; Version: 0.3
+;; Version: 0.4
 ;; Package-Requires: ((cl-lib "0.2"))
 ;; Keywords: regexp, replace, visual, feedback
 
@@ -24,6 +24,7 @@
 ;; along with visual-regexp.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; WHAT'S NEW
+;; 0.3: vr/mc-mark: interface to multiple-cursors.
 ;; 0.3: Use the same history as the regular Emacs replace commands; 
 ;; 0.2: Support for lisp expressions in the replace string, same as in (query-)replace-regexp
 ;; 0.1: initial release
@@ -54,6 +55,8 @@
 ;; (require 'visual-regexp)
 ;; (define-key global-map (kbd "C-c r") 'vr/replace)
 ;; (define-key global-map (kbd "C-c q") 'vr/query-replace)
+;; ;; if you use multiple-cursors, this is for you:
+;; (define-key global-map (kbd "C-c m") 'vr/mc-mark)
 ;; ----------------------------------------------------------
 ;; To customize, use `M-x customize-group [RET] visual-regexp`.
 
