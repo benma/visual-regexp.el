@@ -426,10 +426,9 @@ visible all the time in the minibuffer."
 (defun vr--feedback-match-callback (i j begin end)
   (with-current-buffer vr--target-buffer
     (save-excursion
-      (when (= 0 i) ;; first match: if invisible, make it visible.
+      (when (= 0 i) ;; make first match visible
 	(with-selected-window (vr--target-window)
-	  (if (>= begin (window-end nil t))
-	      (goto-char begin))))
+	  (goto-char end)))
       (let ((overlay (vr--get-overlay i j)))
 	(move-overlay overlay begin end vr--target-buffer)
 	(if (and (= 0 j) (= begin end)) ;; empty match; indicate by a pipe
