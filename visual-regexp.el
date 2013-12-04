@@ -4,7 +4,7 @@
 
 ;; Author: Marko Bencun <mbencun@gmail.com>
 ;; URL: https://github.com/benma/visual-regexp.el/
-;; Version: 0.3
+;; Version: 0.4
 ;; Package-Requires: ((cl-lib "0.2"))
 ;; Keywords: regexp, replace, visual, feedback
 
@@ -24,6 +24,7 @@
 ;; along with visual-regexp.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; WHAT'S NEW
+;; 0.3: vr/mc-mark: interface to multiple-cursors.
 ;; 0.3: Use the same history as the regular Emacs replace commands; 
 ;; 0.2: Support for lisp expressions in the replace string, same as in (query-)replace-regexp
 ;; 0.1: initial release
@@ -54,6 +55,8 @@
 ;; (require 'visual-regexp)
 ;; (define-key global-map (kbd "C-c r") 'vr/replace)
 ;; (define-key global-map (kbd "C-c q") 'vr/query-replace)
+;; ;; if you use multiple-cursors, this is for you:
+;; (define-key global-map (kbd "C-c m") 'vr/mc-mark)
 ;; ----------------------------------------------------------
 ;; To customize, use `M-x customize-group [RET] visual-regexp`.
 
@@ -565,17 +568,17 @@ visible all the time in the minibuffer."
         (set-match-data (mapcar (lambda (el) (+ cumulative-offset el)) last-match-data))
 	replace-count))))
 
-(defun vr--interactive-get-args ()
+(defun vr--interactive-get-args (mode)
   "Get interactive args for the vr/replace and vr/query-replace functions."
   (unwind-protect
       (progn
         (let ((buffer-read-only t)) ;; make target buffer
           (when vr--in-minibuffer (error "visual-regexp already in use."))
           (setq vr--target-buffer (current-buffer))
-          (setq vr--target-buffer-start (if (and transient-mark-mode mark-active)
+          (setq vr--target-buffer-start (if (region-active-p)
 					    (region-beginning)
 					  (point)))
-          (setq vr--target-buffer-end (if (and transient-mark-mode mark-active)
+          (setq vr--target-buffer-end (if (region-active-p)
 					  (region-end)
 					(point-max)))
 
@@ -597,19 +600,25 @@ visible all the time in the minibuffer."
 		     nil vr/query-replace-from-history-variable))
               ;;(setq vr--regexp-string (format "%s%s" (vr--get-regexp-modifiers-prefix) vr--regexp-string))
 
-              (setq vr--in-minibuffer 'vr--minibuffer-replace)
-              (setq vr--last-minibuffer-contents "")
-              (setq vr--replace-string
-                    (read-from-minibuffer
-                     " " ;; prompt will be  set in vr--minibuffer-setup
-                     nil vr/minibuffer-replace-keymap
-		     nil vr/query-replace-to-history-variable))))
+	      (when (equal mode 'vr--mode-regexp-replace)
+		(setq vr--in-minibuffer 'vr--minibuffer-replace)
+		(setq vr--last-minibuffer-contents "")
+		(setq vr--replace-string
+		      (read-from-minibuffer
+		       " " ;; prompt will be  set in vr--minibuffer-setup
+		       nil vr/minibuffer-replace-keymap
+		       nil vr/query-replace-to-history-variable)))))
           ;; Successfully got the args, deactivate mark now. If the command was aborted (C-g), the mark (region) would remain active.
           (deactivate-mark)
-          (list vr--regexp-string
-                vr--replace-string
-                vr--target-buffer-start
-                vr--target-buffer-end)))
+	  (cond ((equal mode 'vr--mode-regexp-replace)
+		 (list vr--regexp-string
+		       vr--replace-string
+		       vr--target-buffer-start
+		       vr--target-buffer-end))
+		((equal mode 'vr--mode-regexp)
+		 (list vr--regexp-string
+		       vr--target-buffer-start
+		       vr--target-buffer-end)))))
     (progn ;; execute on finish
       (setq vr--in-minibuffer nil)
       (unless (overlayp vr--minibuffer-message-overlay)
@@ -617,11 +626,47 @@ visible all the time in the minibuffer."
       (vr--delete-overlay-displays)
       (vr--delete-overlays))))
 
+(add-hook 'multiple-cursors-mode-enabled-hook
+	  ;; run vr/mc-mark once per cursor by default (do not ask the user)
+	  (lambda ()
+	    (when (boundp 'mc--default-cmds-to-run-once)
+	      (add-to-list 'mc--default-cmds-to-run-once 'vr/mc-mark))))
+
+;;;###autoload
+(defun vr/mc-mark (regexp start end)
+  "Convert regexp selection to multiple cursors."
+  (interactive
+   (vr--interactive-get-args 'vr--mode-regexp))
+  (with-current-buffer vr--target-buffer
+    (mc/remove-fake-cursors)
+    (activate-mark)
+    (let ((regexp-string (vr--get-regexp-string))
+	  ;; disable deactivating of mark after buffer-editing commands
+	  ;; (which happens for example in visual-regexp-steroids/vr--parse-matches
+	  ;; during the callback).
+	  (deactivate-mark nil)
+	  (first-fake-cursor nil))
+      (vr--feedback-function t nil (lambda (i j begin end)
+				     (with-current-buffer vr--target-buffer
+				       (goto-char end)
+				       (push-mark begin)
+				       ;; temporarily enable transient mark mode
+				       (activate-mark)
+				       (let ((fc (mc/create-fake-cursor-at-point)))
+					 (unless first-fake-cursor
+					   (setq first-fake-cursor fc))))))
+      
+      ;; one fake cursor too many, replace first one with
+      ;; the regular cursor.
+      (when first-fake-cursor
+	(mc/pop-state-from-overlay first-fake-cursor)))
+    (mc/maybe-multiple-cursors-mode)))
+
 ;;;###autoload
 (defun vr/replace (regexp replace start end)
   "Regexp-replace with live visual feedback."
   (interactive
-   (vr--interactive-get-args))
+   (vr--interactive-get-args 'vr--mode-regexp-replace))
   (unwind-protect
       (progn
         (when vr--in-minibuffer (error "visual-regexp already in use."))
@@ -670,7 +715,7 @@ E [not supported in visual-regexp]"
 (defun vr/query-replace (regexp replace start end)
   "Use vr/query-replace like you would use query-replace-regexp."
   (interactive
-   (vr--interactive-get-args))
+   (vr--interactive-get-args 'vr--mode-regexp-replace))
   (unwind-protect
       (progn
         (when vr--in-minibuffer (error "visual-regexp already in use."))
