@@ -24,7 +24,7 @@
 ;; along with visual-regexp.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; WHAT'S NEW
-;; 0.3: vr/mc-mark: interface to multiple-cursors.
+;; 0.4: vr/mc-mark: interface to multiple-cursors.
 ;; 0.3: Use the same history as the regular Emacs replace commands; 
 ;; 0.2: Support for lisp expressions in the replace string, same as in (query-)replace-regexp
 ;; 0.1: initial release
