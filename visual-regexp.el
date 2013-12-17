@@ -4,7 +4,7 @@
 
 ;; Author: Marko Bencun <mbencun@gmail.com>
 ;; URL: https://github.com/benma/visual-regexp.el/
-;; Version: 0.4
+;; Version: 0.5
 ;; Package-Requires: ((cl-lib "0.2"))
 ;; Keywords: regexp, replace, visual, feedback
 
@@ -24,6 +24,7 @@
 ;; along with visual-regexp.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; WHAT'S NEW
+;; 0.5: emulate case-conversion of replace-regexp.
 ;; 0.4: vr/mc-mark: interface to multiple-cursors.
 ;; 0.3: Use the same history as the regular Emacs replace commands; 
 ;; 0.2: Support for lisp expressions in the replace string, same as in (query-)replace-regexp
@@ -458,9 +459,15 @@ visible all the time in the minibuffer."
 (defun vr--get-replacement (replacement match-data i)
   (with-current-buffer vr--target-buffer
     (set-match-data match-data)
-    (if (stringp replacement)
-	(match-substitute-replacement replacement)
-      (match-substitute-replacement (funcall (car replacement) (cdr replacement) i)))))
+    (let*
+	;; emulate case-conversion of (perform-replace)
+	((case-fold-search (if (and case-fold-search search-upper-case)
+			       (isearch-no-upper-case-p (vr--get-regexp-string) t)
+			     case-fold-search))
+	 (nocasify (not (and case-replace case-fold-search))))
+      (if (stringp replacement)
+	  (match-substitute-replacement replacement nocasify)
+	(match-substitute-replacement (funcall (car replacement) (cdr replacement) i))))))
 
 (defun vr--do-replace-feedback-match-callback (replacement match-data i)
   (let ((begin (cl-first match-data))
