@@ -467,7 +467,7 @@ visible all the time in the minibuffer."
 	 (nocasify (not (and case-replace case-fold-search))))
       (if (stringp replacement)
 	  (match-substitute-replacement replacement nocasify)
-	(match-substitute-replacement (funcall (car replacement) (cdr replacement) i))))))
+	(match-substitute-replacement (funcall (car replacement) (cdr replacement) i) nocasify)))))
 
 (defun vr--do-replace-feedback-match-callback (replacement match-data i)
   (let ((begin (cl-first match-data))
