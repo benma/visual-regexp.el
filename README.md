@@ -36,3 +36,8 @@ Construction of the regexp:
 
 Construction of the replacement string with inlined preview enabled:
 ![entering replacement](https://github.com/benma/visual-regexp.el/raw/master/screenshots/visual-regexp1B.png)
+
+## Tip Jar
+If you found this useful, please consider donating.
+
+BTC: 1BxauiLGMQPb2pavkkQkuFe5CgrGMrUat2

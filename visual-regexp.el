@@ -30,6 +30,10 @@
 ;; 0.2: Support for lisp expressions in the replace string, same as in (query-)replace-regexp
 ;; 0.1: initial release
 
+;;; Tip Jar
+;; If you found this useful, please consider donating.
+;; BTC: 1BxauiLGMQPb2pavkkQkuFe5CgrGMrUat2
+
 ;;; What's This?
 
 ;; visual-regexp for Emacs is like `replace-regexp`, but with live  visual feedback directly in the buffer.
