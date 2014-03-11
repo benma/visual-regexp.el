@@ -4,7 +4,7 @@
 
 ;; Author: Marko Bencun <mbencun@gmail.com>
 ;; URL: https://github.com/benma/visual-regexp.el/
-;; Version: 0.5
+;; Version: 0.6
 ;; Package-Requires: ((cl-lib "0.2"))
 ;; Keywords: regexp, replace, visual, feedback
 
@@ -24,6 +24,7 @@
 ;; along with visual-regexp.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; WHAT'S NEW
+;; 0.6: Distinguish prompts in vr/replace, vr/query-replace, vr/mc-mark.
 ;; 0.5: emulate case-conversion of replace-regexp.
 ;; 0.4: vr/mc-mark: interface to multiple-cursors.
 ;; 0.3: Use the same history as the regular Emacs replace commands; 
@@ -171,6 +172,9 @@ If nil, don't limit the number of matches shown in visual feedback."
 (defvar vr--in-minibuffer nil
   "Is visual-regexp currently being used?")
 
+(defvar vr--calling-func nil
+  "Which function invoked vr--interactive-get-args?")
+
 (defvar vr--last-minibuffer-contents nil
   "Keeping track of minibuffer changes")
 
@@ -269,19 +273,28 @@ If nil, don't limit the number of matches shown in visual feedback."
     (put-text-property (point-min) (minibuffer-prompt-end) 'display prompt)))
 
 (defun vr--set-minibuffer-prompt-regexp ()
-  ;; (format "Regexp: %s" (vr--get-regexp-modifiers-prefix))
-  "Regexp: "
-  )
+  (cond ((equal vr--calling-func 'vr--calling-func-query-replace)
+         "Query regexp: ")
+        ((equal vr--calling-func 'vr--calling-func-mc-mark)
+         "Mark regexp: ")
+	(t
+         "Regexp: ")))
 
 (defun vr--set-minibuffer-prompt-replace ()
-  (concat "Replace"
+  (let (prefix)
+    (setq prefix (cond ((equal vr--calling-func 'vr--calling-func-query-replace)
+			"Query replace: ")
+		       (t
+			"Replace: ")))
+    
+    (concat prefix
           (let ((flag-infos (mapconcat 'identity
                                        (delq nil (list (when vr--replace-preview "preview")))
                                        ", ")))
             (when (not (string= "" flag-infos ))
               (format " (%s)" flag-infos)))
           (format " (%s)" (vr--get-regexp-string))
-          ": "))
+          ": ")))
 
 (defun vr--update-minibuffer-prompt ()
   (when (and vr--in-minibuffer (minibufferp))
@@ -579,12 +592,13 @@ visible all the time in the minibuffer."
         (set-match-data (mapcar (lambda (el) (+ cumulative-offset el)) last-match-data))
 	replace-count))))
 
-(defun vr--interactive-get-args (mode)
+(defun vr--interactive-get-args (mode calling-func)
   "Get interactive args for the vr/replace and vr/query-replace functions."
   (unwind-protect
       (progn
         (let ((buffer-read-only t)) ;; make target buffer
           (when vr--in-minibuffer (error "visual-regexp already in use."))
+	  (setq vr--calling-func calling-func)
           (setq vr--target-buffer (current-buffer))
           (setq vr--target-buffer-start (if (region-active-p)
 					    (region-beginning)
@@ -632,6 +646,7 @@ visible all the time in the minibuffer."
 		       vr--target-buffer-end)))))
     (progn ;; execute on finish
       (setq vr--in-minibuffer nil)
+      (setq vr--calling-func nil)
       (unless (overlayp vr--minibuffer-message-overlay)
 	(delete-overlay vr--minibuffer-message-overlay))
       (vr--delete-overlay-displays)
@@ -647,7 +662,7 @@ visible all the time in the minibuffer."
 (defun vr/mc-mark (regexp start end)
   "Convert regexp selection to multiple cursors."
   (interactive
-   (vr--interactive-get-args 'vr--mode-regexp))
+   (vr--interactive-get-args 'vr--mode-regexp 'vr--calling-func-mc-mark))
   (with-current-buffer vr--target-buffer
     (mc/remove-fake-cursors)
     (activate-mark)
@@ -677,7 +692,7 @@ visible all the time in the minibuffer."
 (defun vr/replace (regexp replace start end)
   "Regexp-replace with live visual feedback."
   (interactive
-   (vr--interactive-get-args 'vr--mode-regexp-replace))
+   (vr--interactive-get-args 'vr--mode-regexp-replace 'vr--calling-func-replace))
   (unwind-protect
       (progn
         (when vr--in-minibuffer (error "visual-regexp already in use."))
@@ -726,7 +741,7 @@ E [not supported in visual-regexp]"
 (defun vr/query-replace (regexp replace start end)
   "Use vr/query-replace like you would use query-replace-regexp."
   (interactive
-   (vr--interactive-get-args 'vr--mode-regexp-replace))
+   (vr--interactive-get-args 'vr--mode-regexp-replace 'vr--calling-func-query-replace))
   (unwind-protect
       (progn
         (when vr--in-minibuffer (error "visual-regexp already in use."))
