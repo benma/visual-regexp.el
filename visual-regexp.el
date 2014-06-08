@@ -283,9 +283,9 @@ If nil, don't limit the number of matches shown in visual feedback."
 (defun vr--set-minibuffer-prompt-replace ()
   (let (prefix)
     (setq prefix (cond ((equal vr--calling-func 'vr--calling-func-query-replace)
-			"Query replace: ")
+			"Query replace ")
 		       (t
-			"Replace: ")))
+			"Replace ")))
     
     (concat prefix
           (let ((flag-infos (mapconcat 'identity
@@ -293,8 +293,8 @@ If nil, don't limit the number of matches shown in visual feedback."
                                        ", ")))
             (when (not (string= "" flag-infos ))
               (format " (%s)" flag-infos)))
-          (format " (%s)" (vr--get-regexp-string))
-          ": ")))
+          (format "%s" (vr--get-regexp-string))
+          " with: ")))
 
 (defun vr--update-minibuffer-prompt ()
   (when (and vr--in-minibuffer (minibufferp))
