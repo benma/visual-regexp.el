@@ -4,7 +4,7 @@
 
 ;; Author: Marko Bencun <mbencun@gmail.com>
 ;; URL: https://github.com/benma/visual-regexp.el/
-;; Version: 0.6
+;; Version: 0.7
 ;; Package-Requires: ((cl-lib "0.2"))
 ;; Keywords: regexp, replace, visual, feedback
 
@@ -24,6 +24,7 @@
 ;; along with visual-regexp.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; WHAT'S NEW
+;; 0.7: Customizable separator (arrow) string and face.
 ;; 0.6: distinguish prompts in vr/replace, vr/query-replace, vr/mc-mark.
 ;; 0.5: emulate case-conversion of replace-regexp.
 ;; 0.4: vr/mc-mark: interface to multiple-cursors.
@@ -74,6 +75,26 @@
 (require 'cl-lib)
 
 ;;; faces
+
+(defcustom vr/match-separator-use-custom-face nil
+  "If activated, vr/match-separator-face is used to display the separator. Otherwise, use the same face as the current match."
+  :type 'boolean
+  :group 'visual-regexp)
+
+
+(defface vr/match-separator-face
+  '((((class color))
+     :foreground "red"
+     :bold t)
+    (t
+     :inverse-video t))
+  "Face for the arrow between match and replacement. To use this, you must activate vr/match-separator-use-custom-face"
+  :group 'visual-regexp)
+
+(defcustom vr/match-separator-string " => "
+  "This string is used to separate a match from the replacement during feedback."
+  :type 'string
+  :group 'visual-regexp)
 
 (defface vr/match-0
   '((((class color) (background light))
@@ -494,14 +515,19 @@ visible all the time in the minibuffer."
          (empty-match (= begin end)))
     (move-overlay overlay begin end vr--target-buffer)
     (vr--delete-overlay-display overlay)
+    (let ((current-face (nth (mod i (length vr--match-faces)) vr--match-faces)))
     (if (or empty-match vr--replace-preview)
         (progn
-          (overlay-put overlay (if empty-match 'after-string 'display) (propertize replacement 'face (nth (mod i (length vr--match-faces)) vr--match-faces)))
+          (overlay-put overlay (if empty-match 'after-string 'display) (propertize replacement 'face current-face))
           (overlay-put overlay 'priority (+ vr--overlay-priority 2)))
       (progn
         (overlay-put overlay 'after-string
-                     (propertize (format " => %s" replacement) 'face (nth (mod i (length vr--match-faces)) vr--match-faces)))
-        (overlay-put overlay 'priority (+ vr--overlay-priority 0)))))))
+		     (concat (propertize vr/match-separator-string 'face
+					 (if vr/match-separator-use-custom-face
+					     'vr/match-separator-face
+					   current-face))
+		     	     (propertize replacement 'face current-face)))
+        (overlay-put overlay 'priority (+ vr--overlay-priority 0))))))))
 
 (defun vr--get-replacements (feedback feedback-limit)
   "Get replacements using emacs-style regexp."
