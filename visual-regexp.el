@@ -699,6 +699,7 @@ visible all the time in the minibuffer."
 ;;;###autoload
 (defun vr/mc-mark (regexp start end)
   "Convert regexp selection to multiple cursors."
+  (require 'multiple-cursors)
   (interactive
    (vr--interactive-get-args 'vr--mode-regexp 'vr--calling-func-mc-mark))
   (with-current-buffer vr--target-buffer
