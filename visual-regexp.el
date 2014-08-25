@@ -29,7 +29,7 @@
 ;; 0.6: distinguish prompts in vr/replace, vr/query-replace, vr/mc-mark.
 ;; 0.5: emulate case-conversion of replace-regexp.
 ;; 0.4: vr/mc-mark: interface to multiple-cursors.
-;; 0.3: use the same history as the regular Emacs replace commands; 
+;; 0.3: use the same history as the regular Emacs replace commands;
 ;; 0.2: support for lisp expressions in the replace string, same as in (query-)replace-regexp
 ;; 0.1: initial release
 
@@ -307,7 +307,7 @@ If nil, don't limit the number of matches shown in visual feedback."
 			"Query replace")
 		       (t
 			"Replace")))
-    
+
     (concat prefix
           (let ((flag-infos (mapconcat 'identity
                                        (delq nil (list (when vr--replace-preview "preview")))
@@ -719,7 +719,7 @@ visible all the time in the minibuffer."
 				       (let ((fc (mc/create-fake-cursor-at-point)))
 					 (unless first-fake-cursor
 					   (setq first-fake-cursor fc))))))
-      
+
       ;; one fake cursor too many, replace first one with
       ;; the regular cursor.
       (when first-fake-cursor
@@ -833,7 +833,7 @@ E [not supported in visual-regexp]"
 	      (setq next-replacement (vr--get-replacement replacement match-data replace-count))
 	      (goto-char begin)
 	      (setq vr--query-replacements (cdr vr--query-replacements))
-	      
+
 	      ;; default for new occurrence: no preview
 	      (setq vr--replace-preview nil)
 
