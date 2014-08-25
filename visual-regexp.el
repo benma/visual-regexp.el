@@ -4,7 +4,7 @@
 
 ;; Author: Marko Bencun <mbencun@gmail.com>
 ;; URL: https://github.com/benma/visual-regexp.el/
-;; Version: 0.7
+;; Version: 0.8
 ;; Package-Requires: ((cl-lib "0.2"))
 ;; Keywords: regexp, replace, visual, feedback
 
@@ -24,6 +24,7 @@
 ;; along with visual-regexp.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; WHAT'S NEW
+;; 0.8: Error handling for vr--get-regexp-string. Bug-fixes regarding error display.
 ;; 0.7: Customizable separator (arrow) string and face.
 ;; 0.6: distinguish prompts in vr/replace, vr/query-replace, vr/mc-mark.
 ;; 0.5: emulate case-conversion of replace-regexp.
@@ -275,8 +276,7 @@ If nil, don't limit the number of matches shown in visual feedback."
          (vr--feedback t) ;; update overlays
          (vr--do-replace-feedback))))
 
-
-(defun vr--get-regexp-string ()
+(defun vr--get-regexp-string (&optional for-display)
   (concat (if (equal vr--in-minibuffer 'vr--minibuffer-regexp)
               (minibuffer-contents-no-properties)
             vr--regexp-string)))
@@ -314,7 +314,7 @@ If nil, don't limit the number of matches shown in visual feedback."
                                        ", ")))
             (when (not (string= "" flag-infos ))
               (format " (%s)" flag-infos)))
-          (format " %s" (vr--get-regexp-string))
+          (format " %s" (vr--get-regexp-string t))
           " with: ")))
 
 (defun vr--update-minibuffer-prompt ()
@@ -451,7 +451,7 @@ visible all the time in the minibuffer."
                           (if forward
                               (re-search-forward regexp-string vr--target-buffer-end t)
                             (re-search-backward regexp-string vr--target-buffer-start t))
-                        ('invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
+                        (invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
             (when (or (not feedback-limit) (< i feedback-limit)) ;; let outer loop finish so we can get the matches count
               (cl-loop for (start end) on (match-data) by 'cddr
                        for j from 0 do
@@ -462,7 +462,8 @@ visible all the time in the minibuffer."
                ((and (not forward) (< vr--target-buffer-start (point))) (backward-char))
                (t (setq looping nil))))
             (setq i (1+ i)))
-          (setq message-line (format "%s matches" i)))))
+          (if (string= "" message-line)
+	      (setq message-line (format "%s matches" i))))))
     message-line))
 
 (defun vr--feedback-match-callback (i j begin end)
@@ -487,8 +488,12 @@ visible all the time in the minibuffer."
   (let ((limit-reached nil)
         message-line)
     (setq message-line
-          (let ((regexp-string (vr--get-regexp-string)))
-            (vr--feedback-function t vr--feedback-limit 'vr--feedback-match-callback)))
+          (let ((regexp-string))
+	    (condition-case err
+		(progn
+		  (setq regexp-string (vr--get-regexp-string))
+		  (vr--feedback-function t vr--feedback-limit 'vr--feedback-match-callback))
+	      (error (car (cdr err))))))
     (unless inhibit-message
       (let ((msg (vr--compose-messages message-line (when limit-reached (format "%s matches shown, hit C-c a to show all" vr--feedback-limit)))))
         (unless (string= "" msg)
@@ -500,7 +505,7 @@ visible all the time in the minibuffer."
     (let*
 	;; emulate case-conversion of (perform-replace)
 	((case-fold-search (if (and case-fold-search search-upper-case)
-			       (isearch-no-upper-case-p (vr--get-regexp-string) t)
+			       (ignore-errors (isearch-no-upper-case-p (invalid-regexp "") t))
 			     case-fold-search))
 	 (nocasify (not (and case-replace case-fold-search))))
       (if (stringp replacement)
@@ -531,43 +536,50 @@ visible all the time in the minibuffer."
 
 (defun vr--get-replacements (feedback feedback-limit)
   "Get replacements using emacs-style regexp."
-  (let ((regexp-string (vr--get-regexp-string))
+  (let ((regexp-string)
         (message-line "")
+	(i 0)
+	(limit-reached nil)
         (replacements (list))
         (err)
         (buffer-contents (with-current-buffer vr--target-buffer
                            (buffer-substring-no-properties (point-min) (point-max)))))
-    (with-current-buffer vr--target-buffer
-      (goto-char vr--target-buffer-start)
-      (let ((i 0)
-	    (looping t)
-	    (limit-reached nil))
-	(while (and
-		looping
+
+    (condition-case err
+	(progn
+	  ;; can signal invalid-regexp
+	  (setq regexp-string (vr--get-regexp-string))
+
+	  (with-current-buffer vr--target-buffer
+	    (goto-char vr--target-buffer-start)
+	    (let ((looping t))
+	      (while (and
+		      looping
+		      (condition-case err
+			  (re-search-forward regexp-string vr--target-buffer-end t)
+			('invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
 		(condition-case err
-		    (re-search-forward regexp-string vr--target-buffer-end t)
-		  ('invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
-	  (condition-case err
-	      (progn
-		(if (or (not feedback) (not feedback-limit) (< i feedback-limit))
-		    (setq replacements (cons
-					(let ((match-data (mapcar 'marker-position (match-data))))
-					  (list (query-replace-compile-replacement replace-string t) match-data i))
-					replacements))
-		  (setq limit-reached t))
-		(when (= (match-beginning 0) (match-end 0))
-		  (if (> vr--target-buffer-end (point))
-		      (forward-char) ;; don't get stuck on zero-width matches
-		    (setq looping nil)))
-		(setq i (1+ i)))
-	    ('error (progn
-		      (setq message-line (vr--format-error err))
-		      (setq replacements (list))
-		      (setq looping nil)))))
+		    (progn
+		      (if (or (not feedback) (not feedback-limit) (< i feedback-limit))
+			  (setq replacements (cons
+					      (let ((match-data (mapcar 'marker-position (match-data))))
+						(list (query-replace-compile-replacement replace-string t) match-data i))
+					      replacements))
+			(setq limit-reached t))
+		      (when (= (match-beginning 0) (match-end 0))
+			(if (> vr--target-buffer-end (point))
+			    (forward-char) ;; don't get stuck on zero-width matches
+			  (setq looping nil)))
+		      (setq i (1+ i)))
+		  ('error (progn
+			    (setq message-line (vr--format-error err))
+			    (setq replacements (list))
+			    (setq looping nil))))))))
+      (invalid-regexp (setq message-line (car (cdr err)))))
+    (if feedback
 	(if (string= "" message-line)
-	  (if feedback
-	      (setq message-line (vr--compose-messages (format "%s matches" i) (when limit-reached (format "%s matches shown, hit C-c a to show all" feedback-limit))))
-	    (setq message-line (format "replaced %d matches" i))))))
+	    (setq message-line (vr--compose-messages (format "%s matches" i) (when limit-reached (format "%s matches shown, hit C-c a to show all" feedback-limit)))))
+      (setq message-line (format "replaced %d matches" i)))
     (list replacements message-line)))
 
 (defun vr--do-replace-feedback ()
