@@ -1,6 +1,6 @@
 ;;; visual-regexp.el --- A regexp/replace command for Emacs with interactive visual feedback
 
-;; Copyright (C) 2013 Marko Bencun
+;; Copyright (C) 2013-2014 Marko Bencun
 
 ;; Author: Marko Bencun <mbencun@gmail.com>
 ;; URL: https://github.com/benma/visual-regexp.el/
@@ -501,13 +501,15 @@ visible all the time in the minibuffer."
 
 (defun vr--get-replacement (replacement match-data i)
   (with-current-buffer vr--target-buffer
-    (set-match-data match-data)
     (let*
         ;; emulate case-conversion of (perform-replace)
         ((case-fold-search (if (and case-fold-search search-upper-case)
-                               (ignore-errors (isearch-no-upper-case-p (invalid-regexp "") t))
+                               (ignore-errors (isearch-no-upper-case-p (vr--get-regexp-string) t))
                              case-fold-search))
          (nocasify (not (and case-replace case-fold-search))))
+      ;; we need to set the match data again, s.t. match-substitute-replacement works correctly. 
+      ;; (match-data) could have been modified in the meantime, e.g. by vr--get-regexp-string->pcre-to-elisp.
+      (set-match-data match-data)
       (if (stringp replacement)
           (match-substitute-replacement replacement nocasify)
         (match-substitute-replacement (funcall (car replacement) (cdr replacement) i) nocasify)))))
@@ -575,7 +577,8 @@ visible all the time in the minibuffer."
                             (setq message-line (vr--format-error err))
                             (setq replacements (list))
                             (setq looping nil))))))))
-      (invalid-regexp (setq message-line (car (cdr err)))))
+      (invalid-regexp (setq message-line (car (cdr err))))
+      (error (setq message-line (car (cdr err)))))
     (if feedback
         (if (string= "" message-line)
             (setq message-line (vr--compose-messages (format "%s matches" i) (when limit-reached (format "%s matches shown, hit C-c a to show all" feedback-limit)))))
