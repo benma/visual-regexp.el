@@ -454,7 +454,9 @@ visible all the time in the minibuffer."
                         (invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
             (when (or (not feedback-limit) (< i feedback-limit)) ;; let outer loop finish so we can get the matches count
               (cl-loop for (start end) on (match-data) by 'cddr
-                       for j from 0 do
+                       for j from 0
+                       when (and start end)
+                       do
                        (funcall callback i j start end)))
             (when (= (match-beginning 0) (match-end 0))
               (cond ;; don't get stuck on zero-width matches
