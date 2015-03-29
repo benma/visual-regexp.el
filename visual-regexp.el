@@ -495,7 +495,7 @@ visible all the time in the minibuffer."
                 (progn
                   (setq regexp-string (vr--get-regexp-string))
                   (vr--feedback-function t vr--feedback-limit 'vr--feedback-match-callback))
-              (error (car (cdr err))))))
+              (error (vr--format-error err)))))
     (unless inhibit-message
       (let ((msg (vr--compose-messages message-line (when limit-reached (format "%s matches shown, hit C-c a to show all" vr--feedback-limit)))))
         (unless (string= "" msg)
@@ -580,7 +580,7 @@ visible all the time in the minibuffer."
                             (setq replacements (list))
                             (setq looping nil))))))))
       (invalid-regexp (setq message-line (car (cdr err))))
-      (error (setq message-line (car (cdr err)))))
+      (error (setq message-line (vr--format-error err))))
     (if feedback
         (if (string= "" message-line)
             (setq message-line (vr--compose-messages (format "%s matches" i) (when limit-reached (format "%s matches shown, hit C-c a to show all" feedback-limit)))))
