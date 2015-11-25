@@ -635,6 +635,38 @@ visible all the time in the minibuffer."
         (set-match-data (mapcar (lambda (el) (+ cumulative-offset el)) last-match-data))
         replace-count))))
 
+(defun vr--set-target-buffer-start-end ()
+  (setq vr--target-buffer-start (if (region-active-p)
+                                    (region-beginning)
+                                  (point)))
+  (setq vr--target-buffer-end (if (region-active-p)
+                                  (region-end)
+                                (point-max))))
+
+(defun vr--set-regexp-string ()
+  (save-excursion
+    ;; deactivate mark so that we can see our faces instead of region-face.
+    (deactivate-mark)
+    (setq vr--in-minibuffer 'vr--minibuffer-regexp)
+    (setq vr--last-minibuffer-contents "")
+    (setq vr--regexp-string
+          (read-from-minibuffer
+           " " ;; prompt will be  set in vr--minibuffer-setup
+           nil vr/minibuffer-regexp-keymap
+           nil vr/query-replace-from-history-variable))))
+
+(defun vr--set-replace-string ()
+  (save-excursion
+    ;; deactivate mark so that we can see our faces instead of region-face.
+    (deactivate-mark)
+    (setq vr--in-minibuffer 'vr--minibuffer-replace)
+    (setq vr--last-minibuffer-contents "")
+    (setq vr--replace-string
+          (read-from-minibuffer
+           " " ;; prompt will be  set in vr--minibuffer-setup
+           nil vr/minibuffer-replace-keymap
+           nil vr/query-replace-to-history-variable))))
+
 (defun vr--interactive-get-args (mode calling-func)
   "Get interactive args for the vr/replace and vr/query-replace functions."
   (unwind-protect
@@ -643,39 +675,17 @@ visible all the time in the minibuffer."
           (when vr--in-minibuffer (error "visual-regexp already in use."))
           (setq vr--calling-func calling-func)
           (setq vr--target-buffer (current-buffer))
-          (setq vr--target-buffer-start (if (region-active-p)
-                                            (region-beginning)
-                                          (point)))
-          (setq vr--target-buffer-end (if (region-active-p)
-                                          (region-end)
-                                        (point-max)))
+          (vr--set-target-buffer-start-end)
 
           (run-hooks 'vr/initialize-hook)
           (setq vr--feedback-limit vr/default-feedback-limit)
 
           (setq vr--replace-preview vr/default-replace-preview)
 
-          (save-excursion
-            ;; deactivate mark so that we can see our faces instead of region-face.
-            (deactivate-mark)
-            (progn
-              (setq vr--in-minibuffer 'vr--minibuffer-regexp)
-              (setq vr--last-minibuffer-contents "")
-              (setq vr--regexp-string
-                    (read-from-minibuffer
-                     " " ;; prompt will be  set in vr--minibuffer-setup
-                     nil vr/minibuffer-regexp-keymap
-                     nil vr/query-replace-from-history-variable))
-              ;;(setq vr--regexp-string (format "%s%s" (vr--get-regexp-modifiers-prefix) vr--regexp-string))
-
-              (when (equal mode 'vr--mode-regexp-replace)
-                (setq vr--in-minibuffer 'vr--minibuffer-replace)
-                (setq vr--last-minibuffer-contents "")
-                (setq vr--replace-string
-                      (read-from-minibuffer
-                       " " ;; prompt will be  set in vr--minibuffer-setup
-                       nil vr/minibuffer-replace-keymap
-                       nil vr/query-replace-to-history-variable)))))
+          (vr--set-regexp-string)
+          (when (equal mode 'vr--mode-regexp-replace)
+            (vr--set-replace-string))
+          
           ;; Successfully got the args, deactivate mark now. If the command was aborted (C-g), the mark (region) would remain active.
           (deactivate-mark)
           (cond ((equal mode 'vr--mode-regexp-replace)
