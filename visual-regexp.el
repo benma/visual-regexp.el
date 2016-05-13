@@ -178,6 +178,11 @@ If nil, don't limit the number of matches shown in visual feedback."
   :type 'symbol
   :group 'visual-regexp)
 
+(defvar vr--case-fold-search nil
+  "case-fold-search while searching.
+either nil, t, or 'yes.  'yes means the same as t except that mixed
+case in the search string is ignored.")
+
 (defvar vr/initialize-hook nil
   "Hook called before vr/replace and vr/query-replace")
 
@@ -237,6 +242,7 @@ If nil, don't limit the number of matches shown in visual feedback."
 (defvar vr/minibuffer-regexp-keymap
   (let ((map (copy-keymap minibuffer-local-map)))
     (define-key map (kbd "C-c ?") 'vr--minibuffer-help)
+    (define-key map (kbd "M-c") 'vr--shortcut-toggle-case-fold)
 
     (define-key map (kbd "C-c a") 'vr--shortcut-toggle-limit)
     map)
@@ -247,6 +253,7 @@ If nil, don't limit the number of matches shown in visual feedback."
     (define-key map (kbd "C-c ?") 'vr--minibuffer-help)
     (define-key map (kbd "C-c m") 'vr--shortcut-show-matches)
     (define-key map (kbd "C-c p") 'vr--shortcut-toggle-preview)
+    (define-key map (kbd "M-c") 'vr--shortcut-toggle-case-fold)
 
     (define-key map (kbd "C-c a") 'vr--shortcut-toggle-limit)
     map)
@@ -278,6 +285,18 @@ If nil, don't limit the number of matches shown in visual feedback."
         ((equal vr--in-minibuffer 'vr--minibuffer-replace)
          (vr--feedback t) ;; update overlays
          (vr--do-replace-feedback))))
+
+(defun vr--shortcut-toggle-case-fold ()
+  "Toggle case folding in searching on or off.
+Toggles the value of the variable `vr--case-fold-search'.
+If ARG is given, turn on case folding if positive, otherwise turn off."
+  (interactive)
+  (setq vr--case-fold-search (if vr--case-fold-search nil 'yes))
+  (vr--minibuffer-message
+   (message "case %ssensitive"
+            (if vr--case-fold-search "in" "")))
+  (sit-for 1)
+  (vr--update))
 
 (defun vr--get-regexp-string (&optional for-display)
   (concat (if (equal vr--in-minibuffer 'vr--minibuffer-regexp)
@@ -403,7 +422,7 @@ visible all the time in the minibuffer."
 
 ;;; hooks
 
-(defun vr--update (beg end len)
+(defun vr--update (&optional _beg _end _len)
   (when (and vr--in-minibuffer (minibufferp))
     ;; minibuffer-up temporarily deletes minibuffer contents before inserting new one.
     ;; don't do anything then as the messages shown by visual-regexp are irritating while browsing the history.
@@ -415,10 +434,11 @@ visible all the time in the minibuffer."
         ;; minibuffer contents has changed, update visual feedback.
         ;; not using after-change-hook because this hook applies to the whole minibuffer, including minibuffer-messages
         ;; that disappear after a while.
-        (cond ((equal vr--in-minibuffer 'vr--minibuffer-regexp)
-               (vr--feedback))
-              ((equal vr--in-minibuffer 'vr--minibuffer-replace)
-               (vr--do-replace-feedback)))))))
+        (let ((case-fold-search vr--case-fold-search))
+          (cond ((equal vr--in-minibuffer 'vr--minibuffer-regexp)
+                 (vr--feedback))
+                ((equal vr--in-minibuffer 'vr--minibuffer-replace)
+                 (vr--do-replace-feedback))))))))
 (add-hook 'after-change-functions 'vr--update)
 
 (defun vr--minibuffer-setup ()
@@ -506,9 +526,9 @@ visible all the time in the minibuffer."
   (with-current-buffer vr--target-buffer
     (let*
         ;; emulate case-conversion of (perform-replace)
-        ((case-fold-search (if (and case-fold-search search-upper-case)
+        ((case-fold-search (if (and vr--case-fold-search search-upper-case)
                                (ignore-errors (isearch-no-upper-case-p (vr--get-regexp-string) t))
-                             case-fold-search))
+                             vr--case-fold-search))
          (nocasify (not (and case-replace case-fold-search))))
       ;; we need to set the match data again, s.t. match-substitute-replacement works correctly. 
       ;; (match-data) could have been modified in the meantime, e.g. by vr--get-regexp-string->pcre-to-elisp.
@@ -675,6 +695,7 @@ visible all the time in the minibuffer."
           (setq vr--calling-func calling-func)
           (setq vr--target-buffer (current-buffer))
           (vr--set-target-buffer-start-end)
+          (setq vr--case-fold-search case-fold-search)
 
           (run-hooks 'vr/initialize-hook)
           (setq vr--feedback-limit vr/default-feedback-limit)
