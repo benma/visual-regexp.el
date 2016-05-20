@@ -97,6 +97,18 @@
   "Face for the arrow between match and replacement. To use this, you must activate vr/match-separator-use-custom-face"
   :group 'visual-regexp)
 
+;; For Emacs < 25.0, this variable is not yet defined.
+;; Copy pasted from Emacs 25.0 replace.el.
+(unless (boundp 'query-replace-from-to-separator)
+  (defcustom query-replace-from-to-separator
+    (propertize (if (char-displayable-p ?→) " → " " -> ")
+		'face 'minibuffer-prompt)
+    "String that separates FROM and TO in the history of replacement pairs."
+    ;; Avoids error when attempt to autoload char-displayable-p fails
+    ;; while preparing to dump, also stops customize-rogue listing this.
+    :initialize 'custom-initialize-delay
+    :type 'sexp))
+
 (defcustom vr/match-separator-string
   (progn
     (custom-reevaluate-setting 'query-replace-from-to-separator)
@@ -291,7 +303,7 @@ If nil, don't limit the number of matches shown in visual feedback."
   (equal vr--in-minibuffer 'vr--minibuffer-regexp))
 
 (defun vr--in-replace ()
-  "Returns t if we are either in the replace prompt, or in the regexp prompt containing a replacement (seperated by query-replace-from-to-separator)"
+  "Returns t if we are either in the replace prompt, or in the regexp prompt containing a replacement (separated by query-replace-from-to-separator)"
   (or (not (vr--in-from))
       (consp (vr--query-replace--split-string (vr--get-regexp-string-full)))))
 
