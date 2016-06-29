@@ -378,7 +378,7 @@ visible all the time in the minibuffer."
 
 (defun vr--minibuffer-help-text ()
   (let ((help ""))
-    (setq help (concat help (substitute-command-keys "\\<vr/minibuffer-keymap>\\[vr--minibuffer-help]: help, \\[vr--shortcut-toggle-limit]: toggle show all")))
+    (setq help (concat help (substitute-command-keys "\\<vr/minibuffer-keymap>\\[vr--minibuffer-help]: help, \\[vr--shortcut-toggle-limit]: toggle show all, \\[previous-history-element]: previous")))
     (when (vr--in-replace)
       (setq help (concat help (substitute-command-keys ", \\[vr--shortcut-toggle-preview]: toggle preview"))))
     help
