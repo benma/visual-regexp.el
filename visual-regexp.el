@@ -536,7 +536,7 @@ visible all the time in the minibuffer."
                                (ignore-errors (isearch-no-upper-case-p (vr--get-regexp-string) t))
                              case-fold-search))
          (nocasify (not (and case-replace case-fold-search))))
-      ;; we need to set the match data again, s.t. match-substitute-replacement works correctly. 
+      ;; we need to set the match data again, s.t. match-substitute-replacement works correctly.
       ;; (match-data) could have been modified in the meantime, e.g. by vr--get-regexp-string->pcre-to-elisp.
       (set-match-data match-data)
       (if (stringp replacement)
@@ -687,14 +687,15 @@ visible all the time in the minibuffer."
               (propertize "\0"
                           'display query-replace-from-to-separator
                           'separator t)))
+           (qr-defaults (symbol-value vr/query-replace-defaults-variable))
            (query-replace-from-to-history
             (append
-             (when separator
+             (when (and separator (listp (cdr qr-defaults)))
                (mapcar (lambda (from-to)
                          (concat (query-replace-descr (car from-to))
                                  separator
                                  (query-replace-descr (cdr from-to))))
-                       (symbol-value vr/query-replace-defaults-variable)))
+                       qr-defaults))
              (symbol-value vr/query-replace-from-history-variable))))
       (setq vr--regexp-string
             (read-from-minibuffer
@@ -743,7 +744,7 @@ visible all the time in the minibuffer."
           (vr--set-regexp-string)
           (when (equal mode 'vr--mode-regexp-replace)
             (vr--set-replace-string))
-          
+
           ;; Successfully got the args, deactivate mark now. If the command was aborted (C-g), the mark (region) would remain active.
           (deactivate-mark)
           (cond ((equal mode 'vr--mode-regexp-replace)
