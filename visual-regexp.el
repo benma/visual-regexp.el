@@ -311,7 +311,7 @@ If nil, don't limit the number of matches shown in visual feedback."
   (equal vr--in-minibuffer 'vr--minibuffer-regexp))
 
 (defun vr--in-replace ()
-  "Returns t if we are either in the replace prompt, or in the regexp prompt containing a replacement (separated by query-replace-from-to-separator)"
+  "Returns t if we are either in the replace prompt, or in the regexp prompt containing a replacement (separated by vr/match-separator-string)"
   (or (not (vr--in-from))
       (consp (vr--query-replace--split-string (vr--get-regexp-string-full)))))
 
@@ -618,7 +618,6 @@ visible all the time in the minibuffer."
 (defun vr--do-replace-feedback ()
   "Show visual feedback for replacements."
   (vr--feedback t) ;; only really needed when regexp has not been changed from default (=> no overlays have been created)
-  (custom-reevaluate-setting 'vr/match-separator-string)
   (cl-multiple-value-bind (replacements message-line) (vr--get-replacements t vr--feedback-limit)
     ;; visual feedback for matches
     (condition-case err
@@ -676,16 +675,16 @@ visible all the time in the minibuffer."
     (deactivate-mark)
     (setq vr--in-minibuffer 'vr--minibuffer-regexp)
     (setq vr--last-minibuffer-contents "")
-    (custom-reevaluate-setting 'query-replace-from-to-separator)
+    (custom-reevaluate-setting 'vr/match-separator-string)
     (let* ((minibuffer-allow-text-properties t)
            (history-add-new-input nil)
            (text-property-default-nonsticky
             (cons '(separator . t) text-property-default-nonsticky))
            ;; seperator and query-replace-from-to-history copy/pasted from replace.el
            (separator
-            (when query-replace-from-to-separator
+            (when vr/match-separator-string
               (propertize "\0"
-                          'display query-replace-from-to-separator
+                          'display vr/match-separator-string
                           'separator t)))
            (query-replace-from-to-history
             (append
