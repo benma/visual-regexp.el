@@ -565,6 +565,9 @@ visible all the time in the minibuffer."
                                  (propertize replacement 'face current-face)))
             (overlay-put overlay 'priority (+ vr--overlay-priority 0))))))))
 
+(defun vr--mapcar-nonnil (rep list)
+  (mapcar (lambda (it) (when it (funcall rep it))) list))
+
 (defun vr--get-replacements (feedback feedback-limit)
   "Get replacements using emacs-style regexp."
   (setq vr--limit-reached nil)
@@ -594,7 +597,7 @@ visible all the time in the minibuffer."
                     (progn
                       (if (or (not feedback) (not feedback-limit) (< i feedback-limit))
                           (setq replacements (cons
-                                              (let ((match-data (mapcar 'marker-position (match-data))))
+                                              (let ((match-data (vr--mapcar-nonnil 'marker-position (match-data))))
                                                 (list (query-replace-compile-replacement replace-string t) match-data i))
                                               replacements))
                         (setq vr--limit-reached t))
@@ -658,7 +661,7 @@ visible all the time in the minibuffer."
       (unless (or silent (string= "" message-line))
         (vr--minibuffer-message message-line))
       ;; needed to correctly position the mark after query replace (finished with 'automatic ('!'))
-      (set-match-data (mapcar (lambda (el) (+ cumulative-offset el)) last-match-data))
+      (set-match-data (vr--mapcar-nonnil (lambda (el) (+ cumulative-offset el)) last-match-data))
       replace-count)))
 
 (defun vr--set-target-buffer-start-end ()
@@ -903,7 +906,7 @@ E [not supported in visual-regexp]"
         (while (and keep-going vr--query-replacements)
           ;; Advance replacement list
           (cl-multiple-value-bind (replacement match-data i) (car vr--query-replacements)
-            (setq match-data (mapcar (lambda (el) (+ cumulative-offset el)) match-data))
+            (setq match-data (vr--mapcar-nonnil (lambda (el) (+ cumulative-offset el)) match-data))
             (let ((begin (cl-first match-data))
                   (end (cl-second match-data))
                   (next-replacement-orig replacement))
