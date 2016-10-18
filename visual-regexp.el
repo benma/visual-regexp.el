@@ -783,14 +783,15 @@ visible all the time in the minibuffer."
           (deactivate-mark nil)
           (first-fake-cursor nil))
       (vr--feedback-function (vr--get-regexp-string) t nil (lambda (i j begin end)
-                                                             (with-current-buffer vr--target-buffer
-                                                               (goto-char end)
-                                                               (push-mark begin)
-                                                               ;; temporarily enable transient mark mode
-                                                               (activate-mark)
-                                                               (let ((fc (mc/create-fake-cursor-at-point)))
-                                                                 (unless first-fake-cursor
-                                                                   (setq first-fake-cursor fc))))))
+                                                             (when (zerop j)
+                                                               (with-current-buffer vr--target-buffer
+                                                                 (goto-char end)
+                                                                 (push-mark begin)
+                                                                 ;; temporarily enable transient mark mode
+                                                                 (activate-mark)
+                                                                 (let ((fc (mc/create-fake-cursor-at-point)))
+                                                                   (unless first-fake-cursor
+                                                                     (setq first-fake-cursor fc)))))))
 
       ;; one fake cursor too many, replace first one with
       ;; the regular cursor.
