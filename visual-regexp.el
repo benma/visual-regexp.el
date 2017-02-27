@@ -486,7 +486,7 @@ visible all the time in the minibuffer."
                       (condition-case err
                           (if forward
                               (funcall (if vr/plain 'search-forward 're-search-forward) regexp-string vr--target-buffer-end t)
-                            (funcall (if 'vr/plain search-backward 're-search-backward) regexp-string vr--target-buffer-start t))
+                            (funcall (if vr/plain 'search-backward 're-search-backward) regexp-string vr--target-buffer-start t))
                         (invalid-regexp (progn (setq message-line (car (cdr err))) nil))))
             (when (or (not feedback-limit) (< i feedback-limit)) ;; let outer loop finish so we can get the matches count
               (cl-loop for (start end) on (match-data) by 'cddr
