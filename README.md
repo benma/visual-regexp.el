@@ -14,7 +14,7 @@ It can be used to replace all matches in one go (like `replace-regexp`), or a de
 
 ## Installation
 
-If you are using Emacs 24, you can get visual-regexp from [melpa](http://melpa.milkbox.net/) with the package manager.
+If you are using Emacs 24, you can get visual-regexp from [melpa](https://melpa.org/) with the package manager.
 
 Add the following code to your init file. Of course you can select your own key bindings.
 Note: `vr/mc-mark` is an interface to [multiple-cursors](https://github.com/magnars/multiple-cursors.el/).
