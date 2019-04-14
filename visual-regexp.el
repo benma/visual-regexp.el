@@ -1,6 +1,6 @@
 ;;; visual-regexp.el --- A regexp/replace command for Emacs with interactive visual feedback
 
-;; Copyright (C) 2013-2017 Marko Bencun
+;; Copyright (C) 2013-2019 Marko Bencun
 
 ;; Author: Marko Bencun <mbencun@gmail.com>
 ;; URL: https://github.com/benma/visual-regexp.el/
@@ -103,7 +103,7 @@
 (unless (boundp 'query-replace-from-to-separator)
   (defcustom query-replace-from-to-separator
     (propertize (if (char-displayable-p ?→) " → " " -> ")
-		'face 'minibuffer-prompt)
+                'face 'minibuffer-prompt)
     "String that separates FROM and TO in the history of replacement pairs."
     ;; Avoids error when attempt to autoload char-displayable-p fails
     ;; while preparing to dump, also stops customize-rogue listing this.
@@ -452,7 +452,6 @@ visible all the time in the minibuffer."
         ;; that disappear after a while.
         (vr--update-minibuffer-prompt)
         (vr--show-feedback)))))
-(add-hook 'after-change-functions 'vr--after-change)
 
 (defun vr--minibuffer-setup ()
   "Setup prompt and help when entering minibuffer."
@@ -460,7 +459,6 @@ visible all the time in the minibuffer."
     (progn
       (vr--update-minibuffer-prompt)
       (when vr/auto-show-help (vr--minibuffer-help)))))
-(add-hook 'minibuffer-setup-hook 'vr--minibuffer-setup)
 
 ;;; helper functions
 
@@ -543,7 +541,7 @@ visible all the time in the minibuffer."
                                (ignore-errors (isearch-no-upper-case-p (vr--get-regexp-string) t))
                              case-fold-search))
          (nocasify (not (and case-replace case-fold-search))))
-      ;; we need to set the match data again, s.t. match-substitute-replacement works correctly. 
+      ;; we need to set the match data again, s.t. match-substitute-replacement works correctly.
       ;; (match-data) could have been modified in the meantime, e.g. by vr--get-regexp-string->pcre-to-elisp.
       (set-match-data match-data)
       (if (stringp replacement)
@@ -740,6 +738,9 @@ visible all the time in the minibuffer."
       (progn
         (let ((buffer-read-only t)) ;; make target buffer
           (when vr--in-minibuffer (error "visual-regexp already in use."))
+          (add-hook 'after-change-functions 'vr--after-change)
+          (add-hook 'minibuffer-setup-hook 'vr--minibuffer-setup)
+
           (setq vr--calling-func calling-func)
           (setq vr--target-buffer (current-buffer))
           (vr--set-target-buffer-start-end)
@@ -752,7 +753,7 @@ visible all the time in the minibuffer."
           (vr--set-regexp-string)
           (when (equal mode 'vr--mode-regexp-replace)
             (vr--set-replace-string))
-          
+
           ;; Successfully got the args, deactivate mark now. If the command was aborted (C-g), the mark (region) would remain active.
           (deactivate-mark)
           (cond ((equal mode 'vr--mode-regexp-replace)
@@ -766,6 +767,8 @@ visible all the time in the minibuffer."
                        vr--target-buffer-end)))))
     (progn ;; execute on finish
       (setq vr--in-minibuffer nil)
+      (remove-hook 'after-change-functions 'vr--after-change)
+      (remove-hook 'minibuffer-setup-hook 'vr--minibuffer-setup)
       (setq vr--calling-func nil)
       (unless (overlayp vr--minibuffer-message-overlay)
         (delete-overlay vr--minibuffer-message-overlay))
