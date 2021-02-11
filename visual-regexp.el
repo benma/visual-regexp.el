@@ -98,26 +98,41 @@
   "Face for the arrow between match and replacement. To use this, you must activate vr/match-separator-use-custom-face"
   :group 'visual-regexp)
 
-;; For Emacs < 25.0, this variable is not yet defined.
-;; Copy pasted from Emacs 25.0 replace.el.
-(unless (boundp 'query-replace-from-to-separator)
-  (defcustom query-replace-from-to-separator
-    (propertize (if (char-displayable-p ?→) " → " " -> ")
-                'face 'minibuffer-prompt)
-    "String that separates FROM and TO in the history of replacement pairs."
-    ;; Avoids error when attempt to autoload char-displayable-p fails
-    ;; while preparing to dump, also stops customize-rogue listing this.
-    :initialize 'custom-initialize-delay
-    :type 'sexp))
+;; For Emacs < 25.1, this variable is not yet defined.
+;; Copy pasted from Emacs 25.1 replace.el.
+(eval-and-compile
+  (if (boundp 'query-replace-from-to-separator)
+      (defcustom vr/match-separator-string
+        (substring-no-properties query-replace-from-to-separator)
+        "This string is used to separate a match from the replacement during feedback."
+        :type `(choice (sexp :tag ,(custom-unlispify-tag-name
+                                    'query-replace-from-to-separator)
+                             ,(substring-no-properties query-replace-from-to-separator))
+                       string)
+        :group 'visual-regexp)
 
-(defcustom vr/match-separator-string
-  (progn
-    (custom-reevaluate-setting 'query-replace-from-to-separator)
-    (substring-no-properties query-replace-from-to-separator))
-  "This string is used to separate a match from the replacement during feedback."
-  :type 'sexp
-  :initialize 'custom-initialize-delay
-  :group 'visual-regexp)
+    (defcustom query-replace-from-to-separator
+      (propertize (if (char-displayable-p ?→) " → " " -> ")
+                  'face 'minibuffer-prompt)
+      "String that separates FROM and TO in the history of replacement pairs."
+      ;; Avoids error when attempt to autoload char-displayable-p fails
+      ;; while preparing to dump, also stops customize-rogue listing this.
+      :initialize 'custom-initialize-delay
+      :group 'matching
+      :type '(choice string (sexp :tag "Display specification"))
+      :version "25.1")
+
+    (defcustom vr/match-separator-string
+      (progn
+        (custom-reevaluate-setting 'query-replace-from-to-separator)
+        (substring-no-properties query-replace-from-to-separator))
+      "This string is used to separate a match from the replacement during feedback."
+      :type `(choice (sexp :tag ,(custom-unlispify-tag-name
+                                  'query-replace-from-to-separator)
+                           ,(substring-no-properties query-replace-from-to-separator))
+                     string)
+      :initialize 'custom-initialize-delay
+      :group 'visual-regexp)))
 
 (defface vr/match-0
   '((((class color) (background light))
@@ -199,7 +214,7 @@ If nil, don't limit the number of matches shown in visual feedback."
   :type 'symbol
   :group 'visual-regexp)
 
-(setq vr--is-emacs24 (version< emacs-version "25"))
+(defvar vr--is-emacs24 (version< emacs-version "25"))
 
 (defvar vr--query-replace-defaults nil
   "Same as query-replace-defaults from Emacs 25, for compatibility with Emacs 24.")
