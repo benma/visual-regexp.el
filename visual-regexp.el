@@ -85,7 +85,8 @@
 ;;; faces
 
 (defcustom vr/match-separator-use-custom-face nil
-  "If activated, vr/match-separator-face is used to display the separator. Otherwise, use the same face as the current match."
+  "If activated, `vr/match-separator-face' is used to display the separator.
+Otherwise, use the same face as the current match."
   :type 'boolean
   :group 'visual-regexp)
 
@@ -95,7 +96,8 @@
      :bold t)
     (t
      :inverse-video t))
-  "Face for the arrow between match and replacement. To use this, you must activate vr/match-separator-use-custom-face"
+  "Face for the arrow between match and replacement.
+To use this, you must activate `vr/match-separator-use-custom-face'."
   :group 'visual-regexp)
 
 ;; For Emacs < 25.0, this variable is not yet defined.
@@ -108,13 +110,14 @@
     ;; Avoids error when attempt to autoload char-displayable-p fails
     ;; while preparing to dump, also stops customize-rogue listing this.
     :initialize 'custom-initialize-delay
+    :group 'matching
     :type 'sexp))
 
 (defcustom vr/match-separator-string
   (progn
     (custom-reevaluate-setting 'query-replace-from-to-separator)
     (substring-no-properties query-replace-from-to-separator))
-  "This string is used to separate a match from the replacement during feedback."
+  "String used to separate a match from the replacement during feedback."
   :type 'sexp
   :initialize 'custom-initialize-delay
   :group 'visual-regexp)
@@ -185,30 +188,32 @@ If nil, don't limit the number of matches shown in visual feedback."
   :group 'visual-regexp)
 
 (defcustom vr/default-replace-preview nil
-  "Preview of replacement activated by default? If activated, the original is not shown alongside the replacement."
+  "Preview of replacement activated by default?
+If activated, the original is not shown alongside the replacement."
   :type 'boolean
   :group 'visual-regexp)
 
 (defcustom vr/query-replace-from-history-variable query-replace-from-history-variable
-  "History list to use for the FROM argument. The default is to use the same history as Emacs' query-replace commands."
+  "History list to use for the FROM argument.
+The default is to use the same history as Emacs' `query-replace' commands."
   :type 'symbol
   :group 'visual-regexp)
 
 (defcustom vr/query-replace-to-history-variable query-replace-to-history-variable
-  "History list to use for the TO argument. The default is to use the same history as Emacs' query-replace commands."
+  "History list to use for the TO argument.
+The default is to use the same history as Emacs' `query-replace' commands."
   :type 'symbol
   :group 'visual-regexp)
 
-(setq vr--is-emacs24 (version< emacs-version "25"))
-
 (defvar vr--query-replace-defaults nil
-  "Same as query-replace-defaults from Emacs 25, for compatibility with Emacs 24.")
+  "Same as `query-replace-defaults' from Emacs 25.
+This is used for compatibility with Emacs 24.")
 
 (defcustom vr/query-replace-defaults-variable
-  (if vr--is-emacs24
+  (if (version< emacs-version "25")
       'vr--query-replace-defaults
     'query-replace-defaults)
-  "History of search/replace pairs"
+  "History of search/replace pairs."
   :type 'symbol
   :group 'visual-regexp)
 
@@ -219,15 +224,15 @@ If nil, don't limit the number of matches shown in visual feedback."
   :group 'visual-regexp)
 
 (defvar vr/initialize-hook nil
-  "Hook called before vr/replace and vr/query-replace")
+  "Hook called before `vr/replace' and `vr/query-replace'.")
 
 ;;; private variables
 
 (defconst vr--match-faces '(vr/match-0 vr/match-1)
-  "Faces in list for convenience")
+  "Faces in list for convenience.")
 
 (defconst vr--group-faces '(vr/group-0 vr/group-1 vr/group-2)
-  "Faces in list for convenience")
+  "Faces in list for convenience.")
 
 (defconst vr--overlay-priority 1001
   "Starting priority of visual-regexp overlays.")
@@ -236,10 +241,10 @@ If nil, don't limit the number of matches shown in visual feedback."
   "Is visual-regexp currently being used?")
 
 (defvar vr--calling-func nil
-  "Which function invoked vr--interactive-get-args?")
+  "Which function invoked `vr--interactive-get-args'?")
 
 (defvar vr--last-minibuffer-contents nil
-  "Keeping track of minibuffer changes")
+  "Keeping track of minibuffer changes.")
 
 (defvar vr--target-buffer-start nil
   "Starting position in target buffer.")
@@ -292,7 +297,7 @@ If nil, don't limit the number of matches shown in visual feedback."
     (vr--do-replace-feedback)))
 
 (defun vr--shortcut-toggle-limit ()
-  "Toggle the limit of overlays shown (default limit / no limit)"
+  "Toggle the limit of overlays shown (default limit / no limit)."
   (interactive)
   (if vr--feedback-limit
       (setq vr--feedback-limit nil)
@@ -314,11 +319,16 @@ If nil, don't limit the number of matches shown in visual feedback."
             (substring-no-properties string (1+ split-pos) length)))))
 
 (defun vr--in-from ()
-  "Returns t if the we are in the regexp prompt. Returns nil if we are in the replace prompt. Call only if (and vr--in-minibuffer (minibufferp))"
+  "Return t if the we are in the regexp prompt.
+Return nil if we are in the replace prompt.  Call only if (and
+`vr--in-minibuffer' (`minibufferp'))."
   (equal vr--in-minibuffer 'vr--minibuffer-regexp))
 
 (defun vr--in-replace ()
-  "Returns t if we are either in the replace prompt, or in the regexp prompt containing a replacement (separated by vr/match-separator-string)"
+  "Return t if we are either in the replace prompt, or in a regexp prompt.
+If we are are in a regexp prompt, `vr--in-replace' returns t only
+if this prompt contains a replacement separated by
+`vr/match-separator-string'."
   (or (not (vr--in-from))
       (consp (vr--query-replace--split-string (vr--get-regexp-string-full)))))
 
@@ -733,7 +743,7 @@ visible all the time in the minibuffer."
           (add-to-history vr/query-replace-defaults-variable (cons vr--regexp-string vr--replace-string)))))))
 
 (defun vr--interactive-get-args (mode calling-func)
-  "Get interactive args for the vr/replace and vr/query-replace functions."
+  "Get interactive args for the `vr/replace' and `vr/query-replace' functions."
   (unwind-protect
       (progn
         (let ((buffer-read-only t)) ;; make target buffer
@@ -784,9 +794,9 @@ visible all the time in the minibuffer."
 ;;;###autoload
 (defun vr/mc-mark (regexp start end)
   "Convert regexp selection to multiple cursors."
-  (require 'multiple-cursors)
   (interactive
    (vr--interactive-get-args 'vr--mode-regexp 'vr--calling-func-mc-mark))
+  (require 'multiple-cursors)
   (with-current-buffer vr--target-buffer
     (mc/remove-fake-cursors)
     (activate-mark)
@@ -863,7 +873,7 @@ E [not supported in visual-regexp]"
 
 ;;;###autoload
 (defun vr/query-replace (regexp replace start end)
-  "Use vr/query-replace like you would use query-replace-regexp."
+  "Use `vr/query-replace' like you would use `query-replace-regexp'."
   (interactive
    (vr--interactive-get-args 'vr--mode-regexp-replace 'vr--calling-func-query-replace))
   (unwind-protect
