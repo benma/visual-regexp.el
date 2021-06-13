@@ -226,6 +226,9 @@ This is used for compatibility with Emacs 24.")
 (defvar vr/initialize-hook nil
   "Hook called before `vr/replace' and `vr/query-replace'.")
 
+(defvar vr/end-hook nil
+  "Hook called after vr/replace and vr/query-replace")
+
 ;;; private variables
 
 (defconst vr--match-faces '(vr/match-0 vr/match-1)
@@ -783,7 +786,8 @@ visible all the time in the minibuffer."
       (unless (overlayp vr--minibuffer-message-overlay)
         (delete-overlay vr--minibuffer-message-overlay))
       (vr--delete-overlay-displays)
-      (vr--delete-overlays))))
+      (vr--delete-overlays)
+      (run-hooks 'vr/end-hook))))
 
 (add-hook 'multiple-cursors-mode-enabled-hook
           ;; run vr/mc-mark once per cursor by default (do not ask the user)
